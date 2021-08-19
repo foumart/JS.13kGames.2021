@@ -1,12 +1,11 @@
-/* To force update on all clients you have to change the version number.
-   Keep in mind that browsers consider the service worker updated only
-   if it is byte-different and changing a single digit is not enough..
-   Just type a random string here to ensure update: qweqweqhdfhdfh
-*/
+// Service Worker script to enable PWA and offline support
 
 var version = "{ID_NAME}_{VERSION}";
 var debug;
 var name = "[SW] "+version+": ";
+
+// Update the following list with all the needed files, so the game will work offline.
+var files = [ "index.html", "ico.png", "assets/ship.png" ];
 
 if (debug) console.log(name+"%cService Worker initialized", "color:#3333cc");
 
@@ -32,11 +31,7 @@ self.addEventListener("install", (event) => {
 			/* After the cache is opened, it is filled with the resources needed for
 			   the offline functioning of the app.
 			*/
-			return cache.addAll(
-				[
-					"index.html", "ico.svg"
-				]
-			);
+			return cache.addAll(files);
 		}).then(() => {
 			if(debug) console.log(name+"%cInstall complete", "color:#339933");
 		})
