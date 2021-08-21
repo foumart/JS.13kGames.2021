@@ -1,7 +1,7 @@
-//window.addEventListener("load", runSimulation);
+let state = 1;
 
 // solar
-const scales = [6, 5.5, 4.25, 3.75, 2.25, 1.8, 1.5, 1.3, 1.8];
+const scales = [6, 5.5, 4.25, 3.75, 2.4, 1.65, 1.4, 1.25, 1.8];
 
 // jupiter
 //const scales = [5, 4.5, 3.25, 2.5, 1.25];
@@ -26,27 +26,29 @@ let stars;
 function runSolarSystem() {
 	// Solar system setting
 	const planets = [
-		new Planet(10, 36, 120, 'gray', 'Mercury'),
-		new Planet(16, 25, 160, 'orange', 'Venus'),
+		new Planet(11, 36, 115, 'gray', 'Mercury', 1),
+		new Planet(15, 25, 160, 'orange', 'Venus', 1),
 		new Planet(20, 10, 220, 'blue', 'Earth', [
 			new Planet(6, 120, 32, 'silver', 'Moon')
 		]),
-		new Planet(15, 8, 280, 'red', 'Mars'),
+		new Planet(16, 8, 285, 'red', 'Mars', 1),
 		new Planet(36, 4, 425, 'gold', 'Jupiter', [
 			new Planet(6, 36, 50, 'orange', 'Io'),
-			new Planet(5, 24, 68, 'silver', 'Europa'),
-			new Planet(10.5, 16, 90, 'tan', 'Ganymede'),
-			new Planet(8, 12, 115, 'dimgray', 'Callisto')
+			new Planet(5, 24, 66, 'silver', 'Europa'),
+			new Planet(9, 16, 85, 'tan', 'Ganymede'),
+			new Planet(8, 12, 105, 'dimgray', 'Callisto')
 		]),
 		new Planet(32, 3, 600, 'yellow', 'Saturn', [
-			new Planet(9, 18, 54, 'wheat', 'Titan'),
+			new Planet(8.5, 18, 54, 'wheat', 'Titan'),
 		]),
-		new Planet(26, 2, 700, 'blue', 'Uranus'),
+		new Planet(26, 2, 700, 'blue', 'Uranus', 1),
 		new Planet(24, 1, 780, 'purple', 'Neptune', [
 			new Planet(7.5, 12, 36, 'gray', 'Triton'),
 		])
 	];
 	sun = new Planet(80, 0, 0, 'yellow', 'The Solar System', planets);
+
+	gameDiv.append(sun.div);
 
 	// Earth and Moon setting
 	/*const planets = [
@@ -99,6 +101,20 @@ function onClick(e) {
 	if (zoomed) {
 		if (e.target.link == sun) {
 			toggleZoom();
+		} else {
+			const selected = sun.moons.indexOf(e.target.link);
+			if (selected > -1) {
+				if (selectedPlanet != selected) {
+					selectedPlanet = selected;
+					tweenToPlanet(e.target.link);
+					updateUI();
+				} else {
+					// enter planet surface mode
+					state = 2;
+					running = true;
+					runSurface();
+				}
+			}
 		}
 	} else if (e.target.link == sun) {
 		sunscale = basescale;
@@ -112,22 +128,46 @@ function onClick(e) {
 	}
 }
 
+function tweenToPlanet(planet) {
+	TweenFX.to(tween, 30, {
+		scale: scales[selectedPlanet],
+		offset: -960 + planet.orbitRadius * scales[selectedPlanet],
+		rotation: (360 - planet.velocity * 1800) - Math.atan2(sun.y - planet.y, sun.x - planet.x) * 180 / Math.PI
+	});
+}
+
 function toggleZoom() {
 	zoomed = !zoomed;
 	if (!zoomed) {
 		if (tween.rotation) {
-			TweenFX.to(tween, 30, {scale: sunscale, offset: -960, rotation : 0});//  
+			TweenFX.to(tween, 30, {scale: sunscale, offset: -960});//  , rotation : 0
 		}
 	}
 	updateUI();
 }
 
 function animate() {
-	requestAnimationFrame(animate);
 	gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 	stars.forEach(star => star.draw());
-	sun.update();
-	gameCanvas.style.transform = `translateX(${tween.offset}px) translateY(-1380px) rotate(${tween.rotation}deg)`;
+	if (state == 1) {
+		requestAnimationFrame(animate);
+		sun.update();
+		gameCanvas.style.transform = `translateX(${tween.offset}px) translateY(-1380px) rotate(${tween.rotation}deg)`;
+	} else {
+		gameCanvas.style.transform = `translateX(0) translateY(0) rotate(0deg)`;
+		while (gameDiv.firstChild) {
+			gameDiv.lastChild.onclick = null;
+			gameDiv.lastChild.onmouseover = null;
+			gameDiv.lastChild.onmouseout = null;
+			gameDiv.removeChild(gameDiv.lastChild);
+
+			gameDiv.onclick = () => {
+				state = 1;
+				runSolarSystem();
+				gameDiv.onclick = null;
+			}
+		}
+	}
 }
 
 class Star {
@@ -157,14 +197,17 @@ class Planet {
 		this.velocity = velocity / 1000;
 		this.radian = Math.random() * 6;
 		this.orbitRadius = orbitRadius;
-		this.moons = moons;
-
-		const div = document.createElement('div');
-		gameDiv.appendChild(div);
-		this.div = div;
-		div.link = this;
-		div.style = `background-color:${color};border-radius:900px;cursor:pointer;`;
-		div.addEventListener('click', onClick);
+		if (moons) {
+			if (moons != 1) this.moons = moons;
+			const div = document.createElement('div');
+			gameDiv.prepend(div);
+			this.div = div;
+			div.link = this;
+			div.style = `background-color:white;border-radius:2000px;cursor:pointer;opacity:0`;
+			div.onclick = onClick;
+			div.onmouseover = () => this == sun ? this.div.style.opacity = 0.1 : this.highlighted = true;
+			div.onmouseout = () => this == sun ? this.div.style.opacity = 0 : this.highlighted = false;
+		}
 	}
 
 	updateSourcePosition(x, y) {
@@ -173,10 +216,9 @@ class Planet {
 		this.update();
 	}
 
-	draw() {
-		// Planet Path
+	drawPath(lineWidth, color) {
 		gameContext.beginPath();
-		gameContext.lineWidth = 2;
+		gameContext.lineWidth = lineWidth;
 		gameContext.arc(
 			this.startX,
 			this.startY,
@@ -185,10 +227,18 @@ class Planet {
 			Math.PI * 2,
 			false
 		);
-		gameContext.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+		gameContext.strokeStyle = color;
 		gameContext.stroke();
+	}
 
-		// Planet
+	draw() {
+		// draw planet orbit
+		if (this.div && (this.highlighted || sun.moons.indexOf(this) == selectedPlanet && zoomed)) {
+			this.drawPath(this.radius * (2 + (this.moons ? this.moons.length : 1)) * tween.scale, sun.moons.indexOf(this) == selectedPlanet || !zoomed ? '#111' : '#0c0c0c');
+		}
+		this.drawPath(3, '#333');
+
+		// draw planet
 		// note: shadow blur lags alot on phones
 		//gameContext.shadowBlur = ((this == sun ? 100 : 50) + this.radius) / 5;
 		//gameContext.shadowColor = this.color;
@@ -197,14 +247,10 @@ class Planet {
 		gameContext.fillStyle = this.color;
 		gameContext.fill();
 		//gameContext.shadowBlur = 0;
-
-		if ((zoomed && this != sun) || (!zoomed && tween.rotation)) {
-			this.div.style.display = 'none';
-		} else {
-			this.div.style.display = 'block';
-			this.div.style.transform = `translateX(${this.x + tween.offset}px) translateY(${this.y - 1380}px)`;
-			this.div.style.width = this.div.style.height = `${this.radius * 2 * tween.scale}px`;
-			this.div.style.marginLeft = this.div.style.marginTop = `-${this.radius * 1 * tween.scale}px`;
+		if (this.div) {
+			this.div.style.transform = `translateX(${(1920+tween.offset)}px) translateY(${540}px)`;
+			this.div.style.width = this.div.style.height = `${(this.orbitRadius + this.radius*(this==sun?1.15:2)) * 2 * tween.scale}px`;
+			this.div.style.marginLeft = this.div.style.marginTop = `-${(this.orbitRadius + this.radius*(this==sun?1.15:2)) * tween.scale}px`;
 		}
 	}
 
@@ -217,11 +263,7 @@ class Planet {
 
 		if (zoomed) {
 			if (sun.moons.indexOf(this) == selectedPlanet) {
-				TweenFX.to(tween, 30, {
-					scale: scales[selectedPlanet],
-					offset: -960 + this.orbitRadius * scales[selectedPlanet],
-					rotation: (360 - this.velocity * 1800) - Math.atan2(sun.y - this.y, sun.x - this.x) * 180 / Math.PI
-				});
+				tweenToPlanet(this);
 			}
 		}
 

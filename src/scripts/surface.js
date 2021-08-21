@@ -1,5 +1,5 @@
 
-var running = true;
+var running;
 
 var stageWidth = 7680;
 
@@ -13,7 +13,7 @@ var shipX = hardWidth/2-230;
 var shipY = 400;
 var playerX = 0;
 
-var bgrMountines = [];
+var bgrMountines;
 var mountineHills = 50;
 var mapOffsetY = 120;//height of mountines
 
@@ -37,16 +37,14 @@ function ready() {
 	drawBgr(true);
 	drawMenuBgr();
 
-	//window.addEventListener("resize", resize, false);
-	//resize();
-
-	setTimeout(startGame, 500);
+	//setTimeout(startGame, 500);
+	startGame();
 }
 
 function drawBgr(overlay) {
 	//bgrContext.drawImage(bgr_image, 0, 0, hardWidth, hardHeight);
 	//bgrContext.drawImage(bgr_image, hardWidth, 0, hardWidth, hardHeight);
-	if(overlay) {
+	if (overlay) {
 		bgrContext.beginPath();
 		var gradient = bgrContext.createLinearGradient(0, 50, 0, hardHeight);
 		gradient.addColorStop(0, 'rgba(32,64,92, 0.25)');
@@ -117,7 +115,7 @@ function initGame(){//console.log("init level:"+level);
 
 function generateLevel() {
 	//generate mountines
-	bgrMountines.push([0, 0]);
+	bgrMountines = [[0, 0]];
 	for(c=1; c<mountineHills; c++) {
 		bgrMountines.push([(stageWidth/mountineHills) * c + Math.random()*(stageWidth/mountineHills)/2, 25 + Math.random()*25*(c%2==0?1:-1)]);
 	}
@@ -248,6 +246,10 @@ function draw() {
 	gameContext.translate(0, 0);
 	gameContext.restore();
 
-
-	if (running) requestAnimationFrame(draw);
+	if (state == 2) {
+		if (running) requestAnimationFrame(draw);
+	} else {
+		bgrContext.clearRect(0,0, hardWidth*2, hardHeight);
+		toggleZoom();
+	}
 }
