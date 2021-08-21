@@ -1,6 +1,7 @@
 * {
 	padding: 0;
 	margin: 0;
+	overflow: hidden;
 }
 
 body {
@@ -10,4 +11,5 @@ body {
 div, canvas {
 	user-select: none;
 	touch-action: none;
+	position: absolute;
 }

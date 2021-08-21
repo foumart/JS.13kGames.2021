@@ -22,28 +22,26 @@ function updateMonetization() {
 
 
 // fullscreen functionality
-let _fullscreen;
-
-document.addEventListener("fullscreenchange", updateFullscreen);
+/*document.addEventListener("fullscreenchange", updateFullscreen);
 
 function updateFullscreen() {
-	_fullscreen = document.fullscreenElement;
+	//document.fullscreenElement;
 	//...
-}
+}*/
 
 // toggle fullscreen mode
-function toggleFullscreen() {
+/*function toggleFullscreen() {
 	if (!document.fullscreenElement) {
 		document.documentElement.requestFullscreen();
+		//window.document.dispatchEvent("fullscreen", _loadEvent, false);
 	} else if (document.exitFullscreen) {
 		document.exitFullscreen();
 	}
-}
+}*/
 
 
 // loader
 function init() {
 	checkMonetization();
-	updateFullscreen();
-	runGame();
+	//toggleFullscreen();
 }

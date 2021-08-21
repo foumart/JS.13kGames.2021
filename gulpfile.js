@@ -108,11 +108,19 @@ function sw(callback) {
 	}
 }
 
-// compile the pwa initialization script (if needed), as well as loader and game logic scripts
+// minify css
+function css(callback) {
+	src('src/styles/*.css', { allowEmpty: true })
+		.pipe(cleanCSS())
+		.pipe(concat('temp.css'))
+		.pipe(dest(dir + '/tmp/'))
+		.on('end', callback)
+}
+
+// compile the pwa initialization script and loader, as well as game scripts
 function app(callback) {
 	const scripts = [
-		'resources/loader.js',
-		'src/scripts/*'
+		'resources/loader.js'
 	];
 	if (pwa) {
 		scripts.unshift('resources/sw_init.js');
@@ -121,11 +129,11 @@ function app(callback) {
 	src(scripts, { allowEmpty: true })
 		.pipe(replace('let _debug;', `let _debug = ${debug ? 'true' : 'false'};`, replaceOptions))
 		.pipe(replace('service_worker', 'sw', replaceOptions))
+		.pipe(gulpif(!pwa, replace('// loader', 'window.addEventListener("load", init);', replaceOptions)))
 		.pipe(concat('tmp.js'))
 		.pipe(dest(dir + '/tmp/'))
 		.on('end', () => {
 			src([dir + '/tmp/tmp.js'], { allowEmpty: true })
-				.pipe(gulpif(!pwa, replace('// loader', 'window.addEventListener("load", init);', replaceOptions)))
 				.pipe(gulpif(!debug,
 					closureCompiler({
 						compilation_level: 'ADVANCED_OPTIMIZATIONS',
@@ -137,17 +145,22 @@ function app(callback) {
 				.pipe(gulpif(!debug, minify({ noSource: true })))
 				.pipe(concat('temp.js'))
 				.pipe(dest(dir + '/tmp/'))
-				.on('end', callback)
+				.on('end', () => {
+					src(['src/scripts/*'], { allowEmpty: true })
+						.pipe(gulpif(!debug,
+							closureCompiler({
+								compilation_level: 'ADVANCED_OPTIMIZATIONS',
+								warning_level: 'QUIET',
+								language_in: 'ECMASCRIPT6',
+								language_out: 'ECMASCRIPT6'
+							})
+						))
+						.pipe(gulpif(!debug, minify({ noSource: true })))
+						.pipe(concat('app.js'))
+						.pipe(dest(dir + '/tmp/'))
+						.on('end', callback);
+				});
 		});
-}
-
-// minify css
-function css(callback) {
-	src('src/styles/*.css', { allowEmpty: true })
-		.pipe(cleanCSS())
-		.pipe(concat('temp.css'))
-		.pipe(dest(dir + '/tmp/'))
-		.on('end', callback)
 }
 
 // prepare index.html
@@ -155,10 +168,10 @@ function html(callback) {
 	src('src/index.html', { allowEmpty: true })
 		.pipe(replace('{MONETIZATION}', monetization, replaceOptions))
 		.pipe(replace('{TITLE}', title, replaceOptions))
-		.pipe(gulpif(social != false && mobile != false, htmlreplace({'mobile': mobile, 'social': social, 'css': 'rep_css', 'js': 'rep_js'})))
-		.pipe(gulpif(social === false && mobile != false, htmlreplace({'mobile': mobile, 'social': '', 'css': 'rep_css', 'js': 'rep_js'})))
-		.pipe(gulpif(social != false && mobile === false, htmlreplace({'mobile': '', 'social': social, 'css': 'rep_css', 'js': 'rep_js'})))
-		.pipe(gulpif(social === false && mobile === false, htmlreplace({'mobile': '', 'social': '', 'css': 'rep_css', 'js': 'rep_js'})))
+		.pipe(gulpif(social != false && mobile != false, htmlreplace({'mobile': mobile, 'social': social, 'js': 'rep_js'})))
+		.pipe(gulpif(social === false && mobile != false, htmlreplace({'mobile': mobile, 'social': '', 'js': 'rep_js'})))
+		.pipe(gulpif(social != false && mobile === false, htmlreplace({'mobile': '', 'social': social, 'js': 'rep_js'})))
+		.pipe(gulpif(social === false && mobile === false, htmlreplace({'mobile': '', 'social': '', 'js': 'rep_js'})))
 		.pipe(concat('temp.html'))
 		.pipe(dest(dir + '/tmp/'))
 		.on('end', callback)
@@ -181,29 +194,37 @@ function mf(callback) {
 // inline js and css into html and remove unnecessary stuff
 function pack(callback) {
 	var fs = require('fs');
+	var onclick = 'onclick="(function(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else if(document.exitFullscreen)document.exitFullscreen()})()"';
 	src(dir + '/tmp/temp.html', { allowEmpty: true })
 		.pipe(replace('{TITLE}', title, replaceOptions))
-		.pipe(replace('minimum-scale=1,maximum-scale=1,', '', replaceOptions))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
 		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
 		.pipe(replace('"', '', replaceOptions))
-		.pipe(replace('rep_css', '<style>' + fs.readFileSync(dir + '/tmp/temp.css', 'utf8') + '</style>', replaceOptions))
+		.pipe(replace('onclick', onclick, replaceOptions))
 		.pipe(replace('rep_js', '<script>' + fs.readFileSync(dir + '/tmp/temp.js', 'utf8') + '</script>', replaceOptions))
 		.pipe(gulpif(!debug, replace('"use strict";', '', replaceOptions)))
 		.pipe(concat('index.html'))
 		.pipe(dest(dir + '/'))
-		.on('end', callback);
+		.on('end', () => {
+			src(['src/game.html'], { allowEmpty: true })
+			.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
+			.pipe(replace('"', '', replaceOptions))
+			.pipe(replace('rep_css', '<style>' + fs.readFileSync(dir + '/tmp/temp.css', 'utf8') + '</style>', replaceOptions))
+			.pipe(replace('rep_js', '<script>' + fs.readFileSync(dir + '/tmp/app.js', 'utf8') + '</script>', replaceOptions))
+			.pipe(concat('game.html'))
+			.pipe(dest(dir + '/'))
+			.on('end', callback);
+		});
 }
 
 // delete the temporary folder generated during packaging
-function clean(callback) {
-	del(dir + '/tmp/');
-	callback();
+function clean() {
+	return del(dir + '/tmp/');
 }
 
 // package zip
 function archive(callback) {
-	src([dir + '/*'], { allowEmpty: true })
+	src([dir + '/*', dir + '/*/*'], { allowEmpty: true })
 		.pipe(zip(test ? 'game.zip' : 'game_' + timestamp + '.zip'))
 		.pipe(advzip({ optimizationLevel: 4, iterations: 100 }))
 		.pipe(dest('zip/'))

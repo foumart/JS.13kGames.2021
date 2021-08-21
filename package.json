@@ -13,7 +13,7 @@
 	"scripts": {
 		"build": "npx del-cli public --force && gulp --dir public --pwa --mobile",
 		"debug": "npx del-cli public --force && gulp --dir public --pwa --mobile --debug",
-		"start": "npx del-cli public/index.html gulp sync --dir public --pwa --mobile",
+		"start": "npx del-cli public/game.html gulp sync --dir public --pwa --mobile",
 		"pack": "npx del-cli public --force && gulp pack --dir public --pwa --mobile",
 		"test": "gulp zip --dir public --pwa --mobile --test"
 	},
