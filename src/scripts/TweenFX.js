@@ -18,6 +18,7 @@ class TweenFX {
 			tweenedEnd.push(_object[key]);
 		})
 		let count = 0;
+		let eased;
 		const duration = _duration;
 		const element = _element;
 		//const object = _object;
@@ -25,10 +26,11 @@ class TweenFX {
 			if (count < duration) {
 				count ++;
 				tweenedKeys.forEach((key, i) => {
+					eased = duration * .5 * (Math.sin((count / duration - .5) * Math.PI) + 1);
 					if (tweenedStart[i] > tweenedEnd[i]) {
-						element[key] = tweenedEnd[i] + (tweenedStart[i] - tweenedEnd[i]) / duration * (duration - count);
+						element[key] = tweenedEnd[i] + (tweenedStart[i] - tweenedEnd[i]) / duration * (duration - eased);
 					} else {
-						element[key] = tweenedStart[i] - (tweenedStart[i] - tweenedEnd[i]) / duration * count;
+						element[key] = tweenedStart[i] - (tweenedStart[i] - tweenedEnd[i]) / duration * eased;
 					}
 				});
 				requestAnimationFrame(tween);

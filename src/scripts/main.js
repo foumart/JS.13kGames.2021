@@ -1,6 +1,7 @@
 const game = document.getElementById("game");
 const bgrCanvas = document.getElementById("bgrCanvas");
 const gameCanvas = document.getElementById("gameCanvas");
+const gameDiv = document.getElementById("gameDiv");
 const overCanvas = document.getElementById("overCanvas");
 
 window.addEventListener("load", init);
@@ -37,5 +38,5 @@ function init() {
 	window.addEventListener("resize", resize, false);
 	resize();
 
-	runGame();
+	runSolarSystem();
 }

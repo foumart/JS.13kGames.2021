@@ -194,13 +194,11 @@ function mf(callback) {
 // inline js and css into html and remove unnecessary stuff
 function pack(callback) {
 	var fs = require('fs');
-	var onclick = 'onclick="(function(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else if(document.exitFullscreen)document.exitFullscreen()})()"';
 	src(dir + '/tmp/temp.html', { allowEmpty: true })
 		.pipe(replace('{TITLE}', title, replaceOptions))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
 		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
 		.pipe(replace('"', '', replaceOptions))
-		.pipe(replace('onclick', onclick, replaceOptions))
 		.pipe(replace('rep_js', '<script>' + fs.readFileSync(dir + '/tmp/temp.js', 'utf8') + '</script>', replaceOptions))
 		.pipe(gulpif(!debug, replace('"use strict";', '', replaceOptions)))
 		.pipe(concat('index.html'))

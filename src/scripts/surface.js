@@ -26,7 +26,7 @@ var shipSightY = 5;
 var speedLimit = 50;
 var speedEase = 8;
 
-function runGame() {
+function runSurface() {
 	//bgr_image = new Image();
 	//bgr_image.src = 'assets/bgr.jpg';
 	//bgr_image.onload = ready;

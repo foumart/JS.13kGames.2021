@@ -9,7 +9,11 @@ body {
 }
 
 div, canvas {
-	user-select: none;
-	touch-action: none;
 	position: absolute;
+	user-select: none;
+}
+
+canvas {
+	touch-action: none;
+	pointer-events: none;
 }

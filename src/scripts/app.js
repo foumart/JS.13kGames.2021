@@ -1,71 +1,80 @@
 //window.addEventListener("load", runSimulation);
 
-const rotations = [308, 316, 342, 346, 354, 356, 358, 360];
-const scales = [5.5, 5.25, 4.25, 4, 2.4, 1.8, 1.5, 1.3];
+// solar
+const scales = [6, 5.5, 4.25, 3.75, 2.25, 1.8, 1.5, 1.3, 1.8];
+
+// jupiter
+//const scales = [5, 4.5, 3.25, 2.5, 1.25];
+
+// earth
+//const scales = [4, 2];
+
+const basescale = scales.pop();
+let sunscale = basescale;
+const tween = {
+	scale: 0.01,
+	rotation: 0,
+	offset: -960
+}
 
 let zoomed;
-var scale = 2;
-var sunscale = 2;
-var rotation = 0;
-var offset = -960;
 let selectedPlanet = 4;
 
 let sun;
 let stars;
 
-function runSimulation() {
-	stars = [];
-
+function runSolarSystem() {
+	// Solar system setting
 	const planets = [
-		// mercury
-		new Planet(9.5, 36, 120, 'gray', 'Mercury'),
-		// venus
+		new Planet(10, 36, 120, 'gray', 'Mercury'),
 		new Planet(16, 25, 160, 'orange', 'Venus'),
-		// earth
 		new Planet(20, 10, 220, 'blue', 'Earth', [
-			// moon
-			new Planet(6, 120, 32, 'silver')
+			new Planet(6, 120, 32, 'silver', 'Moon')
 		]),
-		// mars
-		new Planet(13, 8, 280, 'red', 'Mars'),
-		// jupiter
+		new Planet(15, 8, 280, 'red', 'Mars'),
 		new Planet(36, 4, 425, 'gold', 'Jupiter', [
-			// io
-			new Planet(6, 36, 50, 'orange'),
-			// europe
-			new Planet(5, 24, 68, 'silver'),
-			// ganymede
-			new Planet(10.5, 16, 90, 'tan'),
-			// callisto
-			new Planet(8, 12, 115, 'dimgray')
+			new Planet(6, 36, 50, 'orange', 'Io'),
+			new Planet(5, 24, 68, 'silver', 'Europa'),
+			new Planet(10.5, 16, 90, 'tan', 'Ganymede'),
+			new Planet(8, 12, 115, 'dimgray', 'Callisto')
 		]),
-		// saturn
 		new Planet(32, 3, 600, 'yellow', 'Saturn', [
-			// titan
-			new Planet(10, 18, 54, 'wheat'),
+			new Planet(9, 18, 54, 'wheat', 'Titan'),
 		]),
-
-		// uranus
 		new Planet(26, 2, 700, 'blue', 'Uranus'),
-		
-		// neptune
 		new Planet(24, 1, 780, 'purple', 'Neptune', [
-			// triton
-			new Planet(7.5, 12, 36, 'gray'),
+			new Planet(7.5, 12, 36, 'gray', 'Triton'),
 		])
-	]
+	];
+	sun = new Planet(80, 0, 0, 'yellow', 'The Solar System', planets);
 
-	sun = new Planet(80, 0, 0, 'yellow', 'The Sun System', planets);
+	// Earth and Moon setting
+	/*const planets = [
+		new Planet(22, 12, 220, 'silver', 'Moon')
+	];
+	sun = new Planet(90, 0, 0, 'blue', 'Earth', planets);*/
 
+	// Jupiter setting
+	/*const planets = [
+		new Planet(18, 15, 150, 'orange', 'Io'),
+		new Planet(15, 8, 220, 'silver', 'Europa'),
+		new Planet(32, 5, 300, 'tan', 'Ganymede'),
+		new Planet(24, 3, 400, 'dimgray', 'Callisto')
+	];
+	sun = new Planet(85, 0, 0, 'gold', 'Jupiter', planets);*/
+
+	stars = [];
 	for (let i = 0; i < 300; i++) {
 		stars.push(new Star());
 	}
 
-	game.addEventListener('click', onClick);
+	//game.addEventListener('click', onClick);
 
 	game.onwheel = zoom;
 
 	updateUI();
+
+	TweenFX.to(tween, 120, {scale: sunscale});
 
 	animate();
 }
@@ -80,17 +89,34 @@ function updateUI() {
 function zoom(event) {
 	event.preventDefault();
 	if (!zoomed) {
-		sunscale += event.deltaY * -0.001;
+		sunscale += event.deltaY * - sunscale * 0.002;
 		sunscale = Math.min(Math.max(0.65, sunscale), 3);
-		TweenFX.to(app, 30, {scale: sunscale});
+		TweenFX.to(tween, 30, {scale: sunscale});
 	}
 }
 
-function onClick() {
+function onClick(e) {
+	if (zoomed) {
+		if (e.target.link == sun) {
+			toggleZoom();
+		}
+	} else if (e.target.link == sun) {
+		sunscale = basescale;
+		TweenFX.to(tween, 30, {scale: sunscale});
+	} else {
+		const selected = sun.moons.indexOf(e.target.link);
+		if (selected > -1) {
+			selectedPlanet = selected;
+			toggleZoom();
+		}
+	}
+}
+
+function toggleZoom() {
 	zoomed = !zoomed;
 	if (!zoomed) {
-		if (rotation) {
-			TweenFX.to(app, 30, {scale: sunscale, rotation: 0, offset: -960});
+		if (tween.rotation) {
+			TweenFX.to(tween, 30, {scale: sunscale, offset: -960, rotation : 0});//  
 		}
 	}
 	updateUI();
@@ -101,14 +127,14 @@ function animate() {
 	gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 	stars.forEach(star => star.draw());
 	sun.update();
-	gameCanvas.style.transform = `translateX(${offset}px) translateY(-1380px) rotate(${rotation}deg)`;
+	gameCanvas.style.transform = `translateX(${tween.offset}px) translateY(-1380px) rotate(${tween.rotation}deg)`;
 }
 
 class Star {
 	constructor() {
 		this.x = Math.random() * gameCanvas.width;
 		this.y = Math.random() * gameCanvas.height;
-		this.radius = Math.random() * 2;
+		this.radius = Math.random() * 3;
 	}
 
 	draw() {
@@ -131,16 +157,14 @@ class Planet {
 		this.velocity = velocity / 1000;
 		this.radian = Math.random() * 6;
 		this.orbitRadius = orbitRadius;
-		if (moons) {
-			this.moons = moons;
-			moons.forEach(planet => {
-				planet.updateSource(this);
-			});
-		}
-	}
+		this.moons = moons;
 
-	updateSource(source) {
-		this.source = source;
+		const div = document.createElement('div');
+		gameDiv.appendChild(div);
+		this.div = div;
+		div.link = this;
+		div.style = `background-color:${color};border-radius:900px;cursor:pointer;`;
+		div.addEventListener('click', onClick);
 	}
 
 	updateSourcePosition(x, y) {
@@ -156,7 +180,7 @@ class Planet {
 		gameContext.arc(
 			this.startX,
 			this.startY,
-			this.orbitRadius * scale,
+			this.orbitRadius * tween.scale,
 			0,
 			Math.PI * 2,
 			false
@@ -165,28 +189,38 @@ class Planet {
 		gameContext.stroke();
 
 		// Planet
-		gameContext.shadowBlur = ((this == sun ? 100 : 50) + this.radius) / 5;
-		gameContext.shadowColor = this.color;
+		// note: shadow blur lags alot on phones
+		//gameContext.shadowBlur = ((this == sun ? 100 : 50) + this.radius) / 5;
+		//gameContext.shadowColor = this.color;
 		gameContext.beginPath();
-		gameContext.arc(this.x, this.y, this.radius * scale, 0, Math.PI * 2, false);
+		gameContext.arc(this.x, this.y, this.radius * tween.scale, 0, Math.PI * 2, false);
 		gameContext.fillStyle = this.color;
 		gameContext.fill();
-		gameContext.shadowBlur = 0;
+		//gameContext.shadowBlur = 0;
+
+		if ((zoomed && this != sun) || (!zoomed && tween.rotation)) {
+			this.div.style.display = 'none';
+		} else {
+			this.div.style.display = 'block';
+			this.div.style.transform = `translateX(${this.x + tween.offset}px) translateY(${this.y - 1380}px)`;
+			this.div.style.width = this.div.style.height = `${this.radius * 2 * tween.scale}px`;
+			this.div.style.marginLeft = this.div.style.marginTop = `-${this.radius * 1 * tween.scale}px`;
+		}
 	}
 
 	update() {
 		if (this.velocity > 0) {
 			this.radian += this.velocity;
-			this.x = this.startX + Math.cos(this.radian) * this.orbitRadius * scale;
-			this.y = this.startY + Math.sin(this.radian) * this.orbitRadius * scale;
+			this.x = this.startX + Math.cos(this.radian) * this.orbitRadius * tween.scale;
+			this.y = this.startY + Math.sin(this.radian) * this.orbitRadius * tween.scale;
 		}
 
 		if (zoomed) {
 			if (sun.moons.indexOf(this) == selectedPlanet) {
-				TweenFX.to(app, 30, {
+				TweenFX.to(tween, 30, {
 					scale: scales[selectedPlanet],
 					offset: -960 + this.orbitRadius * scales[selectedPlanet],
-					rotation: (360 - this.velocity * 1800)/*rotations[selectedPlanet]*/ - Math.atan2(sun.y - this.y, sun.x - this.x) * 180 / Math.PI
+					rotation: (360 - this.velocity * 1800) - Math.atan2(sun.y - this.y, sun.x - this.x) * 180 / Math.PI
 				});
 			}
 		}
