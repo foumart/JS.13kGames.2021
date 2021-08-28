@@ -5,8 +5,7 @@
 	"keywords": [
 		"js13kgames",
 		"js13k",
-		"pwa",
-		"template"
+		"pwa"
 	],
 	"monetization": "$ilp.uphold.com/MwfgyiykYARL",
 	"main": "src/scripts/app.js",
@@ -15,7 +14,7 @@
 		"debug": "npx del-cli public --force && gulp --dir public --pwa --mobile --debug",
 		"start": "npx del-cli public/game.html gulp sync --dir public --pwa --mobile",
 		"pack": "npx del-cli public --force && gulp pack --dir public --pwa --mobile",
-		"test": "gulp zip --dir public --pwa --mobile --test"
+		"test": "gulp zip --dir public --test"
 	},
 	"devDependencies": {
 		"browser-sync": "^2.27.5",

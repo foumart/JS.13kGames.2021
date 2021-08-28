@@ -193,7 +193,18 @@ function mf(callback) {
 
 // inline js and css into html and remove unnecessary stuff
 function pack(callback) {
-	var fs = require('fs');
+	const fs = require('fs');
+	const css = fs.readFileSync(dir + '/tmp/temp.css', 'utf8');
+	let js = fs.readFileSync(dir + '/tmp/app.js', 'utf8');
+	let functionName;
+	if (!debug) {
+		const occurance = js.indexOf('ontouchstart');//console.log(js.substr(occurance - 20));
+		functionName = js.substr(occurance + 13, js.charAt(occurance + 15) == ',' || js.charAt(occurance + 15) == ':' ? 1 : 2);
+		//console.log(functionName, js.charAt(occurance + 13), js.charAt(occurance + 14), js.charAt(occurance + 15), js.charAt(occurance + 16));
+		//const targetNameOffset = js.charAt(occurance - 3)  == '?' || js.charAt(occurance - 3)  == ',' ? 1 : 2;
+		//console.log(js.charAt(occurance -5), js.charAt(occurance -4), js.charAt(occurance -3), js.charAt(occurance -2));
+		//jss = js.substr(0, occurance - targetNameOffset) + js.substr(occurance + 15 + functionName.length);
+	}// else jss = js;
 	src(dir + '/tmp/temp.html', { allowEmpty: true })
 		.pipe(replace('{TITLE}', title, replaceOptions))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
@@ -207,11 +218,13 @@ function pack(callback) {
 			src(['src/game.html'], { allowEmpty: true })
 			.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
 			.pipe(replace('"', '', replaceOptions))
-			.pipe(replace('rep_css', '<style>' + fs.readFileSync(dir + '/tmp/temp.css', 'utf8') + '</style>', replaceOptions))
-			.pipe(replace('rep_js', '<script>' + fs.readFileSync(dir + '/tmp/app.js', 'utf8') + '</script>', replaceOptions))
+			.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
+			.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
+			.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
 			.pipe(concat('game.html'))
 			.pipe(dest(dir + '/'))
 			.on('end', callback);
+			//.on('end', ()=>{});
 		});
 }
 

@@ -1,12 +1,10 @@
 class TweenFX {
 
-	//static tweenedElements = [];
-
-	static to(_element, _duration, _object) {
-		/*if (TweenFX.tweenedElements.indexOf(_element) > -1) {
-			return;
-		}
-		TweenFX.tweenedElements.push(_element);*/
+	static to(_element, _duration, _object, _ease, _callback) {
+		// default: ease in-out
+		// 1: ease in
+		// 2: ease out
+		// *: linear
 
 		const tweenedKeys = [];
 		const tweenedStart = [];
@@ -16,17 +14,17 @@ class TweenFX {
 			tweenedKeys.push(key);
 			tweenedStart.push(_element[key]);
 			tweenedEnd.push(_object[key]);
-		})
+		});
+
 		let count = 0;
-		let eased;
 		const duration = _duration;
 		const element = _element;
-		//const object = _object;
+
 		const tween = () => {
 			if (count < duration) {
 				count ++;
 				tweenedKeys.forEach((key, i) => {
-					eased = duration * .5 * (Math.sin((count / duration - .5) * Math.PI) + 1);
+					const eased = ease(_ease);
 					if (tweenedStart[i] > tweenedEnd[i]) {
 						element[key] = tweenedEnd[i] + (tweenedStart[i] - tweenedEnd[i]) / duration * (duration - eased);
 					} else {
@@ -34,11 +32,18 @@ class TweenFX {
 					}
 				});
 				requestAnimationFrame(tween);
-			} else {
-				//TweenFX.tweenedElements.splice(TweenFX.tweenedElements.indexOf(_element), 1);
-				// callback
+			} else if (_callback != null) {
+				_callback();
 			}
 		}
+
+		const ease = type => {
+			if (type == 1) return duration * Math.pow(count / duration, 1.675);
+			if (type == 2) return duration * (1 - Math.pow(1 - count / duration, 1.675));
+			if (!type) return duration * .5 * (Math.sin((count / duration - .5) * Math.PI) + 1);
+			return count;
+		}
+
 		requestAnimationFrame(tween);
 	}
 }
