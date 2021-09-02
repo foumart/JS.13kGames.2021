@@ -1,8 +1,6 @@
 
 let running;
 
-//const planetsWidth = [19200, 19200, 19200, 19200];
-
 let stageWidth;
 let planetWidth;
 
@@ -11,10 +9,13 @@ let step = 0;
 
 let shipY = 400;
 let playerX = 0;
-
+let isEarth;
+let isMoon;
 let bgrMountines;
-const mountineHills = [20, 50, 100, 50];
 const mapOffsetY = 100;//height of mountines on minimap
+let frameOffsetX;
+let frameWidth;
+const offset = ~~(system / 2);
 
 let r, n, c;
 
@@ -29,11 +30,21 @@ let bgrStars = [];
 function runSurface() {
 	game.onwheel = null;
 	running = true;
-	bgrX = 0;console.log(system, state, selectedPlanet);
-	stageWidth = (system == 2 && selectedPlanet ? 18 : (system > 2 ? sun.moons[selectedPlanet].radius / 5 : sun.moons[selectedPlanet].radius - 2)) * 1920;
-	console.log(stageWidth, stageWidth/1920);
+	bgrX = 0;
+
+	if (selectedPlanet == -1) {
+		selectedPlanet = 2;
+		isEarth = true;
+	}
+	if (system == 2 && !selectedPlanet) {
+		isMoon = true;
+	}
+
+	stageWidth = Math.ceil(isEarth ? 10 : isMoon ? 5 : sun.moons[selectedPlanet].radius / 2) * 1920;
+	console.log('surface:', stageWidth/1920, stageWidth);
+
 	planetWidth = stageWidth / hardWidth;
-	playerX = -stageWidth / (2 - planetWidth / 10);
+	playerX = -stageWidth / 2 + stageWidth / planetWidth / 2;
 	addBgrStars();
 	drawBgr();
 	generateSurface();
@@ -42,107 +53,85 @@ function runSurface() {
 }
 
 function addBgrStars() {
-	for (let i = 0; i < 100; i++) {
+	for (let i = 0; i < 90; i++) {
 		bgrStars.push(new Star(bgrCanvas.width / 2, bgrCanvas.height - 300, bgrContext));
 	}
 }
 
+// draw the sky gradient
 function drawBgr() {
-	bgrContext.beginPath();
-	const gradient = bgrContext.createLinearGradient(0, 50, 0, hardHeight);
-	const red = selectedPlanet == 1 ? 3 : selectedPlanet == 3 ? 4 : 1;
-	const blue = selectedPlanet == 2 ? 4 : selectedPlanet == 3 ? 2 : 1;
-	const green = selectedPlanet == 2 ? 3 : selectedPlanet == 3 ? 0 : 1;
-	const colors = [
-		[[2,3,4],[0,2,3],[0,0,2],[1,0,2],[3,1,1],.3],
-		[[4,3,0],[3,2,0],[2,1,0],[2,0,1],[2,2,4],.4],
-		[[2,3,4],[0,3,4],[0,0,3],[0,0,2],[3,0,0],.2],
-		[[4,0,2],[3,0,1],[2,0,0],[2,0,1],[3,0,2],.1],
-	];
-	gradient.addColorStop(0, `rgba(${red*colors[selectedPlanet][0][0]*16},${green*colors[selectedPlanet][0][1]*16},${blue*colors[selectedPlanet][0][2]*16}, ${colors[selectedPlanet][5]*2})`);
-	gradient.addColorStop(.2, `rgba(${red*colors[selectedPlanet][1][0]*16},${green*colors[selectedPlanet][1][1]*16},${blue*colors[selectedPlanet][1][2]*16}, ${colors[selectedPlanet][5]*1})`);
-	gradient.addColorStop(.4, `rgba(${red*colors[selectedPlanet][2][0]*16},${green*colors[selectedPlanet][2][1]*16},${blue*colors[selectedPlanet][2][2]*16}, ${colors[selectedPlanet][5]*0})`);
-	gradient.addColorStop(.6, `rgba(${red*colors[selectedPlanet][3][0]*16},${green*colors[selectedPlanet][3][1]*16},${blue*colors[selectedPlanet][3][2]*16}, ${colors[selectedPlanet][5]*1})`);
-	gradient.addColorStop(1, `rgba(${red*colors[selectedPlanet][4][0]*16},${green*colors[selectedPlanet][4][1]*16},${blue*colors[selectedPlanet][4][2]*16}, ${colors[selectedPlanet][5]*2})`);
-	bgrContext.fillStyle = gradient;
-	bgrContext.rect(0, 100, hardWidth*2, hardHeight - 100);
-	bgrContext.fill();
-	bgrContext.closePath();
-
 	bgrStars.forEach(star => star.draw(0, 100));
 	bgrStars.forEach(star => star.draw(hardWidth, 100));
+	bgrContext.beginPath();
+	const gradient = bgrContext.createLinearGradient(0, 50, 0, hardHeight);
+	const red = isEarth ? 2 : isMoon ? 3 : [4, 4 - offset, 2, 4][selectedPlanet];
+	const green = isEarth ? 3 : isMoon ? 3 : [2, 3, 2, 1][selectedPlanet];
+	const blue = isEarth ? 4 : isMoon ? 4 : [3, 2 + offset, 1 + offset, 3][selectedPlanet];
+	const colors = [
+		isMoon
+			? [[2,3,4], [4,3,3], [2,2,2], [3,2,2], [3,2,3], [.3,.2,.1,.3,.5]]// Moon
+			: [[4-offset,3,3], [4-offset,1,2], [1,0,1], [4-offset,1,2], [4-offset,2,3], [.3,.2,.1,.3,.6]],// Mercury / Io
+		[[4-offset,3,1+offset], [3-offset,2,1+offset], [2,1,1+offset], [2,0,1+offset], [3-offset,2,1+offset], [.6,.4,.2,.4,.6]],// Venus / Europa
+		isEarth
+			? [[2,3,4], [1,3,4], [0,1,3], [1,3,4], [2,3,4], [.3,.1,.2,.3,.5]]// Earth
+			: [[4,3,2], [4,3,0], [3,0,0], [2,0,0], [0,0,3], [.3,.2,.1,.1,.2]],// Ganimede
+		[[4,0,2], [3,0,1], [2,0,0], [2,0,1], [3,0,2], [.4,.2,.1,.3,.6]],// Mars / Callisto
+	];
+	for (let i = 0; i < 5; i++) {
+		gradient.addColorStop(
+			i / 4.2,
+			getRGBA(red*colors[selectedPlanet][i][0], green*colors[selectedPlanet][i][1], blue*colors[selectedPlanet][i][2], colors[selectedPlanet][5][i])
+		);
+	}
+	bgrContext.fillStyle = gradient;
+	bgrContext.rect(0, 100, hardWidth*2, hardHeight - 90);
+	bgrContext.fill();
+	bgrContext.closePath();
+}
+
+function getRGBA(red, green, blue, alpha) {
+	return `rgba(${red*16},${green*16},${blue*16},${alpha})`;
 }
 
 function generateSurface() {
 	//generate mountines
 	bgrMountines = [[0, 0]];
-	for (c = 1; c < mountineHills[selectedPlanet]; c++) {
+	let len = isEarth ? 90 : (system < 2 ? [59, 60, 90, 60] : [59, 32, 60, 50])[selectedPlanet];
+	for (c = 1; c < len; c++) {
 		r = Math.random();
 		bgrMountines.push([
-			(stageWidth / mountineHills[selectedPlanet]) * c + r * (stageWidth / mountineHills[selectedPlanet]) / 2,
+			(stageWidth / len) * c + r * (stageWidth / len) / 2,
 			!selectedPlanet
 					?
 				-25 + r * 25 * (c % 2 == 0 ? 1 : -1)
 					: 
-			selectedPlanet == 1
+			selectedPlanet == 1 && system < 2
 					?
 				~~(c / (2 + r*3)) % 2 ? -25 + r * 25 * (c % 2 == 0 ? 1 : -1) : 150 - 50 * r
 					:
-			selectedPlanet ==2
+			selectedPlanet == 1 && system > 2
 					?
-				~~(c / 20) % 2 == 0 ? (~~(c / 5) % 2 ? -80 : -25) + r * 25 * (c % 2 == 0 ? 1 : -1) : 150
-					: 50
+				(c % 2 == 0 ? -r/2 : r) * 40 * (c % 2 == 0 ? 1 : -1)
+					:
+			isEarth || selectedPlanet == 3
+					?
+				~~(c / 16.2) % 2 == 0 && c > 3 || c == 62 || c == 63 || c == 2 || (c > 19 && c < 32)
+								?
+							(~~(c / 5) % 2 ? -80 : -25) + r * 25 * selectedPlanet * (c % 2 == 0 ? 1 : -1)
+								:
+							isEarth ? 175 : 100 * r
+					:
+				r * 10 * selectedPlanet * (c % 2 == 0 ? 1 : -1)
 		]);
 	}
 	bgrMountines.push([stageWidth, 0]);
+	console.log(selectedPlanet, system, bgrMountines);
 }
-
-/*function drawMenuBgr(){
-	moveBgr();
-	if(!step) requestAnimationFrame(drawMenuBgr);
-}*/
-
-// side scrolling
-function moveBgr() {//stageWidth//playerX
-	if (tween.speed > 0) {
-		bgrX += Math.abs(tween.speed / 2);
-		if (bgrX > hardWidth) {
-			bgrX = bgrX - hardWidth;
-		}
-		playerX += Math.round(Math.abs(tween.speed));
-		if (playerX > stageWidth) {
-			playerX = playerX - stageWidth;
-		}
-	} else {
-		bgrX -= Math.abs(tween.speed / 2);
-		if (bgrX < 0) {
-			bgrX = hardWidth+bgrX;
-		}
-		playerX -= Math.round(Math.abs(tween.speed));
-		if (playerX < 0) {
-			playerX = stageWidth+playerX;
-		}
-	}
-	bgrCanvas.style.transform = `translateX(${-hardWidth + bgrX}px)`;// translateY(-"+(shipY/4)+"px)";
-}
-
-
-//function startGame(){
-	//document.getElementById("controls").style.display = "none";
-	//document.removeEventListener("keydown", menuDownHandler);
-	//menuCanvas.removeEventListener("click", menuClick);
-	//menuCanvas.style.cursor="auto";
-	//menuContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-	//if(!level) level = 1;
-	//distance = 0;
-	
-//}
 
 function draw() {
 	step++;
 	//if(invulnerable) invulnerable--;
 	moveBgr();
-	gameContext.clearRect(0, 100, gameCanvas.width, gameCanvas.height-100);
 
 	//if(leftPressed) {
 	//if(shipSpeedX > -speedLimit+2) shipSpeedX -= (speedLimit-Math.abs(shipSpeedX))/speedEase;
@@ -150,14 +139,14 @@ function draw() {
 
 	// draw minimap bgr color
 	gameContext.beginPath();
-	gameContext.fillStyle = "#111";
+	gameContext.fillStyle = "#112";
 	gameContext.rect(0, 0, gameCanvas.width, mapOffsetY);
 	gameContext.fill();
 	gameContext.closePath();
 
 	// draw mountines on the minimap
 	gameContext.beginPath();
-	gameContext.fillStyle = selectedPlanet == 2 ? "#143" : "#623";
+	gameContext.fillStyle = '#' + (isEarth ? 143 : isMoon ? 555 : (system < 2 ? [534, 740, , 822] : [541, 245, 433, 514])[selectedPlanet]);
 	gameContext.moveTo(0, mapOffsetY - 10);
 	for (n = 0; n < bgrMountines.length; n++) {
 		gameContext.lineTo(bgrMountines[n][0] / planetWidth, mapOffsetY - 15 + bgrMountines[n][1] / planetWidth);
@@ -169,28 +158,30 @@ function draw() {
 	gameContext.closePath();
 
 	// draw minimap frame
-	gameContext.globalAlpha = 0.08;
 	gameContext.beginPath();
-	gameContext.fillStyle = "#fff";
-	gameContext.rect(hardWidth-160 - playerX/planetWidth + (hardWidth-320)/10, 0, hardWidth/planetWidth, mapOffsetY);
+	gameContext.fillStyle = getRGBA(9,9,9,.2);
+	frameOffsetX = hardWidth-160 - playerX/planetWidth + (hardWidth-320)/10;
+	frameWidth = hardWidth/planetWidth;
+	gameContext.rect(frameOffsetX, 0, frameWidth, mapOffsetY);
 	if (playerX < hardWidth) {
 		gameContext.rect(0, 0, (hardWidth - playerX) / planetWidth, mapOffsetY);
 	}
 	gameContext.fill();
 	gameContext.closePath();
-	gameContext.globalAlpha = 1;
+
+	// clear the game area
+	gameContext.clearRect(0, 100, gameCanvas.width, gameCanvas.height-100);
 	
 	/*gameContext.beginPath();
 	gameContext.fillStyle = "#86939b";//"#ffffff"
-	gameContext.rect(hardWidth - playerX/planetWidth + (hardWidth-320)/(tween.speed>0?7:7.2), mapOffsetY-120 + 56*(shipY/850), 30, 6);
-	gameContext.rect(hardWidth - playerX/planetWidth + (hardWidth-320)/(tween.speed>0?7:7.2)+10, mapOffsetY-125 + 56*(shipY/850), 10, 16);
+	gameContext.rect(hardWidth - playerX/planetWidth + (hardWidth-320)/(frame.speed>0?7:7.2), mapOffsetY-120 + 56*(shipY/850), 30, 6);
+	gameContext.rect(hardWidth - playerX/planetWidth + (hardWidth-320)/(frame.speed>0?7:7.2)+10, mapOffsetY-125 + 56*(shipY/850), 10, 16);
 	if (playerX < hardWidth) {
-		gameContext.rect((hardWidth-playerX)/planetWidth - (hardWidth-320)/(tween.speed>0?6.4:6.2), mapOffsetY-120 + 56*(shipY/850), 30, 6);
-		gameContext.rect((hardWidth-playerX)/planetWidth - (hardWidth-320)/(tween.speed>0?6.4:6.2)+10, mapOffsetY-125 + 56*(shipY/850), 10, 16);
+		gameContext.rect((hardWidth-playerX)/planetWidth - (hardWidth-320)/(frame.speed>0?6.4:6.2), mapOffsetY-120 + 56*(shipY/850), 30, 6);
+		gameContext.rect((hardWidth-playerX)/planetWidth - (hardWidth-320)/(frame.speed>0?6.4:6.2)+10, mapOffsetY-125 + 56*(shipY/850), 10, 16);
 	}
 	gameContext.fill();
 	gameContext.closePath();*/
-	
 
 	// draw enemies on the minimap
 	/*for(var n = 0; n < enemies.length; n++){
@@ -235,24 +226,48 @@ function draw() {
 			gameContext.closePath();
 		}
 	}*/
-	
+
 	// draw big mountines
 	gameContext.save();
 	gameContext.translate(playerX-stageWidth, 0);
 	for (let i = 0; i < 5; i++) {
+		if (i == 3) {
+			gameContext.beginPath();
+			gameContext.fillStyle = `rgba(99,99,99,0.5)`;
+			gameContext.arc(2000, 900, 200, Math.PI, 2 * Math.PI);
+			gameContext.closePath();
+			gameContext.fill();
+		}
 		gameContext.beginPath();
-		const reds = selectedPlanet == 1 ? i + i*2 : i;
-		const greens = selectedPlanet == 1 ? 0 : i == 1 ? 5 : i+2;
-		const blues = selectedPlanet == 2 && !i ? 8 : 3;
-		gameContext.fillStyle = `#${reds}0${greens}0${blues}0`;
+		const reds = isEarth ? i : isMoon ? 1+i*2 : !selectedPlanet ? 2-offset+i*2 : selectedPlanet == 1 ? 3+i%3+i*i : selectedPlanet == 3 ? i%2*2+i*3 : i;
+		const greens = isEarth ? 1+i*2 : isMoon ? 1+i*2 : !selectedPlanet ? offset+i*2 : selectedPlanet == 1 ? i%3+i*i : selectedPlanet == 3 ? i : i == 1 ? 3 : i;
+		const blues = isEarth ? !i?8:2 : isMoon ? 1+i*2 : !selectedPlanet ? 1+i*2 : selectedPlanet == 1 ? 1+i%2*i : selectedPlanet == 3 ? i : i==1 ? 5 : 2;
+		gameContext.fillStyle = `#${reds.toString(16)}0${greens.toString(16)}0${blues.toString(16)}0`;
 		gameContext.moveTo(0, hardHeight-90);//(shipY/4));
-		const surfaceHeight = selectedPlanet == 2 ? (180-i*15) : (200-i*25);
-		if (selectedPlanet != 2 || i) {
-			for (n = 0; n < bgrMountines.length; n++) {
-				gameContext.lineTo(bgrMountines[n][0], hardHeight - surfaceHeight + bgrMountines[n][1] * (i==3 ? 0.5 : i==4 ? 0.3 : 1 + i/6) + i * (i > 2 ? i*5 : 10));
-			}
-			for (n = 0; n < bgrMountines.length; n++) {
-				gameContext.lineTo(stageWidth+bgrMountines[n][0], hardHeight - surfaceHeight + bgrMountines[n][1] * (i==3 ? 0.5 : i==4 ? 0.3 : 1 + i/6) + i * (i > 2 ? i*5 : 10));
+		const surfaceHeight = !selectedPlanet ? (200-i*i*5) : selectedPlanet == 2 ? (180-i*15) : (200-i*25);
+		let x, y, distance, previousX = 0;
+		if (!isEarth || i) {
+			for (n = 0; n < bgrMountines.length + bgrMountines.length / (planetWidth - 1); n++) {
+				x = (n >= bgrMountines.length ? stageWidth : 0) + bgrMountines[n % bgrMountines.length][0];
+				y = hardHeight - surfaceHeight + bgrMountines[n % bgrMountines.length][1] * (i==3 ? 0.5 : i==4 ? 0.3 : 1 + i/6) + i * (i > 2 ? i*5 : 10);
+				distance = x - previousX;
+				if (isMoon && (((n % 5 == 0 || n % 2 == 0) && n % 4 > 0 && i < 3) || (n % 6 == 0 && n != 30 && i == 3) || (n % 4 == 0 && n % 5 > 0 && n % 6 > 0 && i == 4))) {
+					// moon surface full with craters
+					gameContext.bezierCurveTo(x - distance, y + 60 - i * 5, x, y + 60 - i * 5, x, y);
+				} else if (!selectedPlanet && ((n % 5 == 0 && i < 3) || (n % 2 == 0 && n % 5 > 0 && n % 6 > 0 && i == 4))) {
+					// mercury like crater surface
+					gameContext.bezierCurveTo(x - distance, y + 60 - i * 4, x, y + 60 - i * 4, x, y);//-250
+				} else if (selectedPlanet == 2 && system > 2) {
+					// desert like
+					gameContext.bezierCurveTo(x - 50, y + 20 + i * 10, x - 25, y + 20 + i * 10, x, y);
+				} else if (selectedPlanet == 2 && system == 3) {
+					// valleys water like
+					gameContext.bezierCurveTo(x - distance/ 2, y + 20 + i * 10, x - distance / 2, y + 20 + i * 10, x, y);
+				} else {
+					// rocky surface
+					gameContext.lineTo(x, y);
+				}
+				previousX = x;
 			}
 		}
 		gameContext.lineTo(stageWidth+hardWidth, hardHeight - 90);
@@ -277,4 +292,28 @@ function draw() {
 		//tweenToPlanet(sun.moons[selectedPlanet]);
 		//console.log(tween)
 	}
+}
+
+// side scrolling
+function moveBgr() {
+	if (frame.speed > 0) {
+		bgrX += Math.abs(frame.speed / 2);
+		if (bgrX > hardWidth) {
+			bgrX = bgrX - hardWidth;
+		}
+		playerX += Math.round(Math.abs(frame.speed));
+		if (playerX > stageWidth) {
+			playerX = playerX - stageWidth;
+		}
+	} else {
+		bgrX -= Math.abs(frame.speed / 2);
+		if (bgrX < 0) {
+			bgrX = hardWidth+bgrX;
+		}
+		playerX -= Math.round(Math.abs(frame.speed));
+		if (playerX < 0) {
+			playerX = stageWidth+playerX;
+		}
+	}
+	bgrCanvas.style.transform = `translateX(${-hardWidth + bgrX}px)`;// translateY(-"+(shipY/4)+"px)";
 }

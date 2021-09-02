@@ -15,7 +15,7 @@ class Planet {
 			if (moons.length) {
 				this.moons = moons;
 				moons.forEach(moon => {
-					if (this.width < 6) this.width += moon.radius > 5 || moon.radius == 4.8 ? 1 : moon.radius > 1 ? 0.25 : moon.radius < 1 ? 0.5 : 0;
+					if (this.width < 6) this.width += moon.radius > 5 || moon.radius == 4.8 ? 1 : moon.radius >= 1 ? 0.25 : moon.radius < 1 ? 0.5 : 0;
 				});
 			}
 			if ((!system && (radius < 25 || radius == 90 || radius == 200) || system == 1) && (moons.length || moons == 1) || system > 1) {
@@ -25,7 +25,6 @@ class Planet {
 				div.link = this;
 				div.style = `background-color:white;border-radius:2000px;cursor:pointer;opacity:0`;
 				div.onclick = onClick;
-				//div.ondblclick = onDoubleClick;
 				div.onmouseover = () => this == sun ? this.div.style.opacity = !skewed && idle ? 0.2 : 0 : this.highlighted = !skewed;
 				div.onmouseout = () => this == sun ? this.div.style.opacity = 0 : this.highlighted = false;
 			}
@@ -47,7 +46,7 @@ class Planet {
 
 		if (zoomed) {
 			if (sun.moons.indexOf(this) == selectedPlanet) {
-				tween.rotation = (360 ) - Math.atan2(sun.y - this.y, sun.x - this.x) * 180 / Math.PI
+				tween.rotation = 360 - Math.atan2(sun.y - this.y, sun.x - this.x) * 180 / Math.PI
 			}
 		}
 
@@ -68,21 +67,26 @@ class Planet {
 			// draw planet orbit interactive top-down area
 			if (this.div && (this.highlighted || sun.moons.indexOf(this) == selectedPlanet && zoomed)) {
 				spaceContext.globalAlpha = sun.moons.indexOf(this) == selectedPlanet || !zoomed ? this.highlighted ? 0.11 : 0.1 : 0.09;
-				this.drawPath((this.radius < 12 ? 12 : this.radius) * this.width * tween.scale, 'fff');
+				this.drawPath((this.radius < 12 ? system == 5 || system == 6 ? 7 : 12 : this.radius) * this.width * tween.scale, 'fff');
 				spaceContext.globalAlpha = 1;
 			}
 
-			// draw planet orbit
-			if (this.radius > 2 || this.radius <= 1) {
-				if (this.radius <= 1) spaceContext.globalAlpha = 0.5;
-				this.drawPath(tween.scale + (this.radius == 1 ? 5 : zoomed ? this.radius < 5 ? -0.5 : this.radius < 10 ? 0 : 1 : 1.5), this.radius == 1 ? 359 : 333);
-				if (this.radius <= 1) spaceContext.globalAlpha = 1;
+			// draw planet orbit or Saturn rings
+			if (this.radius >= 2 || this.radius <= 1) {
+				if (this.radius <= 1 || this.radius == 2) spaceContext.globalAlpha = 0.5;
+				this.drawPath(
+					tween.scale + (this.radius == 1 || this.radius == 2 ? (this.radius == 1 ? 4 : 12) * tween.scale : zoomed ? this.radius < 5 ? -0.5 : this.radius < 10 ? 0 : 1 : 1.5),
+					this.radius == 1 || this.radius == 2 ? 359 : 333
+				);
+				if (this.radius <= 1 || this.radius == 2) spaceContext.globalAlpha = 1;
 			}
 
-			// draw planet color
-			this.drawArc(false);
-			// draw planet shadow
-			this.drawArc();
+			if (this.radius != 1 && this.radius != 2) {
+				// draw planet color
+				this.drawArc(false);
+				// draw planet shadow
+				this.drawArc();
+			}
 		}
 
 		// planet click area

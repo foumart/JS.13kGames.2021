@@ -21,6 +21,7 @@ class TweenFX {
 		const element = _element;
 
 		const tween = () => {
+			if (element.killed) return;
 			if (count < duration) {
 				count ++;
 				tweenedKeys.forEach((key, i) => {
@@ -44,6 +45,7 @@ class TweenFX {
 			return count;
 		}
 
+		element.killed = false;
 		requestAnimationFrame(tween);
 	}
 }

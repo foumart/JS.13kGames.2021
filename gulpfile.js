@@ -198,13 +198,9 @@ function pack(callback) {
 	let js = fs.readFileSync(dir + '/tmp/app.js', 'utf8');
 	let functionName;
 	if (!debug) {
-		const occurance = js.indexOf('ontouchstart');//console.log(js.substr(occurance - 20));
-		functionName = js.substr(occurance + 13, js.charAt(occurance + 15) == ',' || js.charAt(occurance + 15) == ':' ? 1 : 2);
-		//console.log(functionName, js.charAt(occurance + 13), js.charAt(occurance + 14), js.charAt(occurance + 15), js.charAt(occurance + 16));
-		//const targetNameOffset = js.charAt(occurance - 3)  == '?' || js.charAt(occurance - 3)  == ',' ? 1 : 2;
-		//console.log(js.charAt(occurance -5), js.charAt(occurance -4), js.charAt(occurance -3), js.charAt(occurance -2));
-		//jss = js.substr(0, occurance - targetNameOffset) + js.substr(occurance + 15 + functionName.length);
-	}// else jss = js;
+		const occurance = js.indexOf('ontouchstart');
+		functionName = js.substr(occurance + 13, js.charAt(occurance + 15) == ',' || js.charAt(occurance + 15) == ':' ? 2 : 1);
+	}
 	src(dir + '/tmp/temp.html', { allowEmpty: true })
 		.pipe(replace('{TITLE}', title, replaceOptions))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
@@ -224,7 +220,6 @@ function pack(callback) {
 			.pipe(concat('game.html'))
 			.pipe(dest(dir + '/'))
 			.on('end', callback);
-			//.on('end', ()=>{});
 		});
 }
 
