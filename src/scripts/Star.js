@@ -6,7 +6,7 @@ class Star {
 		this.X = width * Math.random();
 		this.Y = height * Math.random();
 		this.alpha = .5 + Math.random() / 2;
-		this.radius = 1 + Math.random();
+		this.radius = this.alpha * 2;
 		this.scaled = scaled;
 		this.update();
 	}
@@ -23,7 +23,7 @@ class Star {
 		if (this.scaled && this.scale != tween.scale) this.update();
 		this.context.beginPath();
 		this.context.arc(this.x + offsetX, this.y + offsetY, this.rad, 0, Math.PI * 2, false);
-		this.context.fillStyle = `rgba(99,99,99,${this.alpha + (1 - this.alpha) * Math.random()})`;
+		this.context.fillStyle = getRGBA(7, 7, 7, this.alpha + (1 - this.alpha) * Math.random());
 		this.context.fill();
 	}
 }

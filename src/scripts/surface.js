@@ -1,23 +1,35 @@
+// Planet / Moon surface view script
+// ---------------------------------
 
 let running;
 
+// height of the minimap
+const surfaceHeight = 150;
+// width of the minimap frame
+let frameWidth;
+let frameOffsetX;
+// total stage width in pixels
 let stageWidth;
+// total window screens contained within a stage
 let planetWidth;
 
-let bgrX = 0;
+// number of drawn frames
 let step = 0;
 
-let shipY = 400;
+//let shipY = 400;
+let bgrX = 0;
 let playerX = 0;
 let isEarth;
 let isMoon;
 let bgrMountines;
-const mapOffsetY = 100;//height of mountines on minimap
-let frameOffsetX;
-let frameWidth;
-const offset = ~~(system / 2);
 
-let r, n, c;
+const offset = 0 | system / 2;
+const structuresSize = 60;
+let structures;
+
+let gameObjects = [
+	{x:20, y: 220}
+];
 
 /*var shipSpeedX = 45;
 var shipSpeedY = -15;
@@ -26,42 +38,64 @@ var speedLimit = 50;
 var speedEase = 8;*/
 
 let bgrStars = [];
+addBgrStars();
+function addBgrStars() {
+	for (i = 0; i < 90; i++) {
+		bgrStars.push(new Star(bgrCanvas.width / 2, bgrCanvas.height - 400, bgrContext));
+	}
+}
+// office:127971, hospital:127973, ice block:129482, satellite:128225/128752, rocket:128640, ufo:128760, helicopter:128641
+// diamond:128142, measure:128476, milky way:127756
+//                    0       1       2     3       4       5       6       7       8       9       10      11      12      13      14      15      16
+//                    hut     house   jar   leafs   cactus  pine    tree    palm,   leafs   rock    headq   factury store   crane   measure 24h     oil bar
+const structureMap = [128726, 127969, 9905, 127806, 127797, 127794, 127795, 127796, 127807, 129704, 127970, 127978, 127980, 127959, 128476, 127981, 128738];
+
+const structureMiniMap = [
+	[0,7, 4,7, 4,9, 9,9, 9,7, 13,7, 13,0],
+	[0,5, 3,7, 6,5, 9,7, 12,5, 16,8, 19,8, 19,0],
+	[0,8, 7,8, 7,6, 12,6, 12,0],
+	[2,3, 6,2, 11,9, 16,2, 20,3, 22,0]
+]
 
 function runSurface() {
-	game.onwheel = null;
+	clearUI();
 	running = true;
 	bgrX = 0;
-
-	if (selectedPlanet == -1) {
+	structures = [];//onclick="console.log(this.innerHTML.codePointAt(0))"
+	isEarth = selectedPlanet == -1;
+	if (isEarth) {
 		selectedPlanet = 2;
-		isEarth = true;
+		structures.push(
+			[5,143.3,1.5,-8], [1,141.2,2.2,9], [5,146,2,-6], [5,144,2.5,9], [12,150,3],
+			[6,178,1.5],[6,180,2,9],
+			[10,189,5,-25], [3,206,1.5,16],
+			[6,220,2,9],
+			[7,271,2.5,36],
+			[8,281.1,1.5,-15], [0,279,2.2], [2,282,1,15], 
+			[4,287.3], [0,288,2], [4,290.5,1.4,6],
+			[15,334.5,4,-14], [11,332,2.5], [16,332,1,-82], [16,332.8,1,-82], [16,339.5,1,12], [13,342,2.2,16]
+		);
 	}
-	if (system == 2 && !selectedPlanet) {
-		isMoon = true;
-	}
+	isMoon = system == 2 && !selectedPlanet;
 
 	stageWidth = Math.ceil(isEarth ? 10 : isMoon ? 5 : sun.moons[selectedPlanet].radius / 2) * 1920;
-	console.log('surface:', stageWidth/1920, stageWidth);
+	console.log('surface width:', stageWidth/1920, stageWidth);
 
 	planetWidth = stageWidth / hardWidth;
 	playerX = -stageWidth / 2 + stageWidth / planetWidth / 2;
-	addBgrStars();
+	frameWidth = hardWidth / planetWidth;
+
 	drawBgr();
 	generateSurface();
 	draw();
 	resize();
 }
 
-function addBgrStars() {
-	for (let i = 0; i < 90; i++) {
-		bgrStars.push(new Star(bgrCanvas.width / 2, bgrCanvas.height - 300, bgrContext));
-	}
-}
-
 // draw the sky gradient
 function drawBgr() {
-	bgrStars.forEach(star => star.draw(0, 100));
-	bgrStars.forEach(star => star.draw(hardWidth, 100));
+	bgrContext.clearRect(0, surfaceHeight, hardWidth*2, hardHeight - surfaceHeight);
+	bgrStars.forEach(star => star.draw(0, surfaceHeight));
+	bgrStars.forEach(star => star.draw(hardWidth, surfaceHeight));
 	bgrContext.beginPath();
 	const gradient = bgrContext.createLinearGradient(0, 50, 0, hardHeight);
 	const red = isEarth ? 2 : isMoon ? 3 : [4, 4 - offset, 2, 4][selectedPlanet];
@@ -77,55 +111,50 @@ function drawBgr() {
 			: [[4,3,2], [4,3,0], [3,0,0], [2,0,0], [0,0,3], [.3,.2,.1,.1,.2]],// Ganimede
 		[[4,0,2], [3,0,1], [2,0,0], [2,0,1], [3,0,2], [.4,.2,.1,.3,.6]],// Mars / Callisto
 	];
-	for (let i = 0; i < 5; i++) {
+	for (i = 0; i < 5; i++) {
 		gradient.addColorStop(
 			i / 4.2,
 			getRGBA(red*colors[selectedPlanet][i][0], green*colors[selectedPlanet][i][1], blue*colors[selectedPlanet][i][2], colors[selectedPlanet][5][i])
 		);
 	}
 	bgrContext.fillStyle = gradient;
-	bgrContext.rect(0, 100, hardWidth*2, hardHeight - 90);
+	bgrContext.rect(0, surfaceHeight, hardWidth*2, hardHeight - surfaceHeight);
 	bgrContext.fill();
 	bgrContext.closePath();
-}
-
-function getRGBA(red, green, blue, alpha) {
-	return `rgba(${red*16},${green*16},${blue*16},${alpha})`;
 }
 
 function generateSurface() {
 	//generate mountines
 	bgrMountines = [[0, 0]];
 	let len = isEarth ? 90 : (system < 2 ? [59, 60, 90, 60] : [59, 32, 60, 50])[selectedPlanet];
-	for (c = 1; c < len; c++) {
+	for (x = 1; x < len; x++) {
 		r = Math.random();
 		bgrMountines.push([
-			(stageWidth / len) * c + r * (stageWidth / len) / 2,
+			(stageWidth / len) * x + r * (stageWidth / len) / 2,
 			!selectedPlanet
 					?
-				-25 + r * 25 * (c % 2 == 0 ? 1 : -1)
+				-25 + r * 25 * (x % 2 == 0 ? 1 : -1)
 					: 
 			selectedPlanet == 1 && system < 2
 					?
-				~~(c / (2 + r*3)) % 2 ? -25 + r * 25 * (c % 2 == 0 ? 1 : -1) : 150 - 50 * r
+				0 | x / (2 + r*3) % 2 ? -25 + r * 25 * (x % 2 == 0 ? 1 : -1) : 150 - 50 * r
 					:
 			selectedPlanet == 1 && system > 2
 					?
-				(c % 2 == 0 ? -r/2 : r) * 40 * (c % 2 == 0 ? 1 : -1)
+				(x % 2 == 0 ? -r/2 : r) * 40 * (x % 2 == 0 ? 1 : -1)
 					:
 			isEarth || selectedPlanet == 3
 					?
-				~~(c / 16.2) % 2 == 0 && c > 3 || c == 62 || c == 63 || c == 2 || (c > 19 && c < 32)
+				(0 | x / 16.2) % 2 == 0 && x > 2 || [2,19,20,32,50,51,52,64].indexOf(x) > -1
 								?
-							(~~(c / 5) % 2 ? -80 : -25) + r * 25 * selectedPlanet * (c % 2 == 0 ? 1 : -1)
+							(0 | x / 5 % 2 && x < 70 ? -80 : -25) + r * 25 * selectedPlanet * (x % 2 == 0 ? 1 : -1)
 								:
 							isEarth ? 175 : 100 * r
 					:
-				r * 10 * selectedPlanet * (c % 2 == 0 ? 1 : -1)
+				r * 10 * selectedPlanet * (x % 2 == 0 ? 1 : -1)
 		]);
 	}
 	bgrMountines.push([stageWidth, 0]);
-	console.log(selectedPlanet, system, bgrMountines);
 }
 
 function draw() {
@@ -140,121 +169,102 @@ function draw() {
 	// draw minimap bgr color
 	gameContext.beginPath();
 	gameContext.fillStyle = "#112";
-	gameContext.rect(0, 0, gameCanvas.width, mapOffsetY);
+	gameContext.rect(0, 0, gameCanvas.width, surfaceHeight-16);
+	gameContext.fill();
+	gameContext.closePath();
+	gameContext.beginPath();
+	gameContext.fillStyle = "#223";
+	gameContext.rect(0, surfaceHeight-16, gameCanvas.width, surfaceHeight);
 	gameContext.fill();
 	gameContext.closePath();
 
 	// draw mountines on the minimap
 	gameContext.beginPath();
-	gameContext.fillStyle = '#' + (isEarth ? 143 : isMoon ? 555 : (system < 2 ? [534, 740, , 822] : [541, 245, 433, 514])[selectedPlanet]);
-	gameContext.moveTo(0, mapOffsetY - 10);
-	for (n = 0; n < bgrMountines.length; n++) {
-		gameContext.lineTo(bgrMountines[n][0] / planetWidth, mapOffsetY - 15 + bgrMountines[n][1] / planetWidth);
+	gameContext.fillStyle = "#333";
+	gameContext.strokeStyle = '#666';//'#' + (isEarth ? 284 : isMoon ? 555 : (system < 2 ? [534, 740, , 822] : [541, 245, 433, 514])[selectedPlanet]);
+	gameContext.lineWidth = 6;
+	gameContext.moveTo(0, surfaceHeight);
+	for (x = 0; x < bgrMountines.length; x++) {
+		gameContext.lineTo(bgrMountines[x][0] / planetWidth, surfaceHeight - 20 + bgrMountines[x][1] / 6);
 	}
-	gameContext.lineTo(gameCanvas.width, mapOffsetY - 10);
-	gameContext.lineTo(gameCanvas.width, mapOffsetY);
-	gameContext.lineTo(0, mapOffsetY);
+	gameContext.lineTo(gameCanvas.width, surfaceHeight);
+	gameContext.stroke();
 	gameContext.fill();
 	gameContext.closePath();
 
 	// draw minimap frame
 	gameContext.beginPath();
 	gameContext.fillStyle = getRGBA(9,9,9,.2);
+
 	frameOffsetX = hardWidth-160 - playerX/planetWidth + (hardWidth-320)/10;
-	frameWidth = hardWidth/planetWidth;
-	gameContext.rect(frameOffsetX, 0, frameWidth, mapOffsetY);
+	frameDiv.style.marginLeft = frameOffsetX + 'px';
+	gameContext.rect(frameOffsetX, 0, frameWidth, surfaceHeight);
 	if (playerX < hardWidth) {
-		gameContext.rect(0, 0, (hardWidth - playerX) / planetWidth, mapOffsetY);
+		gameContext.rect(0, 0, (hardWidth - playerX) / planetWidth, surfaceHeight);
 	}
 	gameContext.fill();
 	gameContext.closePath();
 
+	// draw structures on the minimap
+	for(i = 0; i < structures.length; i++){
+		if (structures[i][0] > 9 && structures[i][0] < 13) {
+			gameContext.beginPath();
+			gameContext.strokeStyle = '#284';
+			gameContext.fillStyle = "#ccc";
+			gameContext.lineWidth = 4;
+			r = structureMiniMap[structures[i][0] - 10];
+
+			gameContext.moveTo(structures[i][1] * 5, surfaceHeight - 12);
+			for (j = 0; j < r.length; j+=2) {
+				gameContext.lineTo(structures[i][1] * 5 + r[j] * 2.5, surfaceHeight + r[j+1] * -4 - 12);
+			}
+			gameContext.closePath();
+			gameContext.fill();
+			gameContext.stroke();
+		}
+	}
+
 	// clear the game area
-	gameContext.clearRect(0, 100, gameCanvas.width, gameCanvas.height-100);
-	
-	/*gameContext.beginPath();
-	gameContext.fillStyle = "#86939b";//"#ffffff"
-	gameContext.rect(hardWidth - playerX/planetWidth + (hardWidth-320)/(frame.speed>0?7:7.2), mapOffsetY-120 + 56*(shipY/850), 30, 6);
-	gameContext.rect(hardWidth - playerX/planetWidth + (hardWidth-320)/(frame.speed>0?7:7.2)+10, mapOffsetY-125 + 56*(shipY/850), 10, 16);
-	if (playerX < hardWidth) {
-		gameContext.rect((hardWidth-playerX)/planetWidth - (hardWidth-320)/(frame.speed>0?6.4:6.2), mapOffsetY-120 + 56*(shipY/850), 30, 6);
-		gameContext.rect((hardWidth-playerX)/planetWidth - (hardWidth-320)/(frame.speed>0?6.4:6.2)+10, mapOffsetY-125 + 56*(shipY/850), 10, 16);
-	}
-	gameContext.fill();
-	gameContext.closePath();*/
-
-	// draw enemies on the minimap
-	/*for(var n = 0; n < enemies.length; n++){
-		if(enemies[n].health>0 && enemies[n].y>-120-enemies[n].type*5){
-			gameContext.beginPath();
-			gameContext.fillStyle = !enemies[n].type?"#334196":enemies[n].type==1?"#86464f":"#338e49";
-			gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + enemies[n].x/4 , mapOffsetY-120 + 56*(enemies[n].y/1000), 5, enemies[n].cargo.length&&!enemies[n].type?15:5);
-			gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + enemies[n].x/4-5 , mapOffsetY-115 + 56*(enemies[n].y/1000), 15, 5);
-			gameContext.rect(enemies[n].x/4 - (playerX/4), mapOffsetY-120 + 56*(enemies[n].y/1000), 5, enemies[n].cargo.length&&!enemies[n].type?15:5);
-			gameContext.rect(enemies[n].x/4-5 - (playerX/4), mapOffsetY-115 + 56*(enemies[n].y/1000), 15, 5);
-			gameContext.fill();
-			gameContext.closePath();
-		}
-	}
-
-	// draw houses and cats on the minimap
-	for(n = 0; n < objects.length; n++){
-		gameContext.beginPath();
-		gameContext.fillStyle = "#39934f";//#66ff66";
-		gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + objects[n].x/4-5 , mapOffsetY-72, 10, 5);
-		gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + objects[n].x/4-15 , mapOffsetY-67, 30, 5);
-		gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + objects[n].x/4-10 , mapOffsetY-62, 20, 7);
-		gameContext.rect(objects[n].x/4-5 - (playerX/4), mapOffsetY-72, 10, 5);
-		gameContext.rect(objects[n].x/4-15 - (playerX/4), mapOffsetY-67, 30, 5);
-		gameContext.rect(objects[n].x/4-10 - (playerX/4), mapOffsetY-62, 20, 7);
-		gameContext.fill();
-		gameContext.closePath();
-	}
-	for(n = 0; n < cats.length; n++){
-		if(!cats[n].abducted){
-			gameContext.beginPath();
-			gameContext.fillStyle = "#39469c";//"#6666ff";
-			var offsetY = cats[n].taken ? (1000 - cats[n].taker.y)/16-20 : (cats[n].initialY-cats[n].y)/20;
-			if(offsetY<0) offsetY = 0;
-			gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + cats[n].x/4 , mapOffsetY-68 - offsetY, 3, 14);
-			gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + cats[n].x/4+7 , mapOffsetY-68 - offsetY, 3, 14);
-			gameContext.rect(gameCanvas.width-160 - playerX/4 + (hardWidth-320)/10 + cats[n].x/4-3 , mapOffsetY-64 - offsetY, 16, 10);
-			gameContext.rect(cats[n].x/4 - (playerX/4), mapOffsetY-68 - offsetY, 3, 14);
-			gameContext.rect(cats[n].x/4+7 - (playerX/4), mapOffsetY-68 - offsetY, 3, 14);
-			gameContext.rect(cats[n].x/4-3 - (playerX/4), mapOffsetY-64 - offsetY, 16, 10);
-			gameContext.fill();
-			gameContext.closePath();
-		}
-	}*/
+	gameContext.clearRect(0, surfaceHeight, gameCanvas.width, gameCanvas.height - surfaceHeight);
 
 	// draw big mountines
 	gameContext.save();
 	gameContext.translate(playerX-stageWidth, 0);
-	for (let i = 0; i < 5; i++) {
-		if (i == 3) {
-			gameContext.beginPath();
-			gameContext.fillStyle = `rgba(99,99,99,0.5)`;
-			gameContext.arc(2000, 900, 200, Math.PI, 2 * Math.PI);
-			gameContext.closePath();
-			gameContext.fill();
+	for (i = 0; i < 5; i++) {
+		// draw surface emoji objects
+		if (i == 4) {
+			for (j = 0; j < structures.length; j++) {
+				const structureData = structures[j % structures.length];
+				for (k = 0; k < (structureData[1] > 50 ? 1 : 2); k++) {
+					gameContext.font = structuresSize * (structureData[2] || 1) + 'px emoji';
+					gameContext.fillText(String.fromCodePoint(structureMap[structureData[0]]), stageWidth * k + structureData[1] * 50, 999 + (structureData[3] || 0));
+				}
+			}
 		}
+
 		gameContext.beginPath();
-		const reds = isEarth ? i : isMoon ? 1+i*2 : !selectedPlanet ? 2-offset+i*2 : selectedPlanet == 1 ? 3+i%3+i*i : selectedPlanet == 3 ? i%2*2+i*3 : i;
-		const greens = isEarth ? 1+i*2 : isMoon ? 1+i*2 : !selectedPlanet ? offset+i*2 : selectedPlanet == 1 ? i%3+i*i : selectedPlanet == 3 ? i : i == 1 ? 3 : i;
-		const blues = isEarth ? !i?8:2 : isMoon ? 1+i*2 : !selectedPlanet ? 1+i*2 : selectedPlanet == 1 ? 1+i%2*i : selectedPlanet == 3 ? i : i==1 ? 5 : 2;
+		const reds = isEarth ? playerX < 2000 || playerX > 14500 ? i == 1 ? 5 : i > 3 ? i*2 : i*4 : playerX > 7800 ? i : 1 + i*3
+					: isMoon ? 1+i*2 : !selectedPlanet ? 2-offset+i*2 : selectedPlanet == 1 ? 3+i%3+i*i : selectedPlanet == 3 ? i%2*2+i*3 : i;
+
+		const greens = isEarth ? playerX < 2000 || playerX > 14500 ? !i ? 0 : i == 1 ? 9 : i > 3 ? 6 + i*2 : 6 + i*3 : playerX > 7800 ? i*3 : i*3
+					: isMoon ? 1+i*2 : !selectedPlanet ? offset+i*2 : selectedPlanet == 1 ? i%3+i*i : selectedPlanet == 3 ? i : i == 1 ? 3 : i;
+
+		const blues = isEarth ? !i ? 8 : playerX < 2000 || playerX > 14500 ? i == 1 ? 12 : i > 3 ? 6 + i*2 : 9 + i*2 : 2
+					: isMoon ? 1+i*2 : !selectedPlanet ? 1+i*2 : selectedPlanet == 1 ? 1+i%2*i : selectedPlanet == 3 ? i : i==1 ? 5 : 2;
+
 		gameContext.fillStyle = `#${reds.toString(16)}0${greens.toString(16)}0${blues.toString(16)}0`;
 		gameContext.moveTo(0, hardHeight-90);//(shipY/4));
-		const surfaceHeight = !selectedPlanet ? (200-i*i*5) : selectedPlanet == 2 ? (180-i*15) : (200-i*25);
-		let x, y, distance, previousX = 0;
+		const surfaceHeight = !selectedPlanet ? (200-i*i*5) : selectedPlanet == 2 ? (175-i*15) : (200-i*25);
+		let distance, previousX = 0;
 		if (!isEarth || i) {
-			for (n = 0; n < bgrMountines.length + bgrMountines.length / (planetWidth - 1); n++) {
-				x = (n >= bgrMountines.length ? stageWidth : 0) + bgrMountines[n % bgrMountines.length][0];
-				y = hardHeight - surfaceHeight + bgrMountines[n % bgrMountines.length][1] * (i==3 ? 0.5 : i==4 ? 0.3 : 1 + i/6) + i * (i > 2 ? i*5 : 10);
+			for (r = 0; r < bgrMountines.length + bgrMountines.length / (planetWidth - 1); r++) {
+				x = (r >= bgrMountines.length ? stageWidth : 0) + bgrMountines[r % bgrMountines.length][0];
+				y = hardHeight - surfaceHeight + bgrMountines[r % bgrMountines.length][1] * (i==3 ? 0.5 : i==4 ? 0.2 : 1 + i/6) + i * (i > 2 ? i*5 : 10);
 				distance = x - previousX;
-				if (isMoon && (((n % 5 == 0 || n % 2 == 0) && n % 4 > 0 && i < 3) || (n % 6 == 0 && n != 30 && i == 3) || (n % 4 == 0 && n % 5 > 0 && n % 6 > 0 && i == 4))) {
+				if (isMoon && (((r % 5 == 0 || r % 2 == 0) && r % 4 > 0 && i < 3) || (r % 6 == 0 && r != 30 && i == 3) || (r % 4 == 0 && r % 5 > 0 && r % 6 > 0 && i == 4))) {
 					// moon surface full with craters
 					gameContext.bezierCurveTo(x - distance, y + 60 - i * 5, x, y + 60 - i * 5, x, y);
-				} else if (!selectedPlanet && ((n % 5 == 0 && i < 3) || (n % 2 == 0 && n % 5 > 0 && n % 6 > 0 && i == 4))) {
+				} else if (!selectedPlanet && ((r % 5 == 0 && i < 3) || (r % 2 == 0 && r % 5 > 0 && r % 6 > 0 && i == 4))) {
 					// mercury like crater surface
 					gameContext.bezierCurveTo(x - distance, y + 60 - i * 4, x, y + 60 - i * 4, x, y);//-250
 				} else if (selectedPlanet == 2 && system > 2) {
@@ -280,17 +290,13 @@ function draw() {
 	gameContext.translate(0, 0);
 	gameContext.restore();
 
-	if (state == 2) {
-		if (running) requestAnimationFrame(draw);
-	} else {
-		// get back to solar system mode
-		//bgrContext.clearRect(0,0, hardWidth*2, hardHeight);
-		//gameCanvas.style.display = 'none';
-		//spaceCanvas.style.display = 'block';
-		//spaceDiv.style.display = 'block';
-		//toggleZoom();
-		//tweenToPlanet(sun.moons[selectedPlanet]);
-		//console.log(tween)
+	gameObjects.forEach(obj => {
+		gameContext.font = '60px emoji';///structuresSize * (structureData[2] || 1) + 'px emoji';
+		gameContext.fillText(String.fromCodePoint(128752), obj.x, obj.y);//structureMap[structureData[0]]), stageWidth * k + structureData[1] * 50, 999 + (structureData[3] || 0));
+	})
+
+	if (state > 2 && running) {
+		requestAnimationFrame(draw);
 	}
 }
 

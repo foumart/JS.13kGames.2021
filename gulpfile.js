@@ -228,11 +228,11 @@ function clean() {
 	return del(dir + '/tmp/');
 }
 
-// package zip
+// package zip (exclude the Temoji.ttf font if it's being used locally)
 function archive(callback) {
-	src([dir + '/*', dir + '/*/*'], { allowEmpty: true })
+	src([dir + '/*', dir + '/*/*', '!'+ dir + '/*.ttf'], { allowEmpty: true })
 		.pipe(zip(test ? 'game.zip' : 'game_' + timestamp + '.zip'))
-		.pipe(advzip({ optimizationLevel: 4, iterations: 100 }))
+		.pipe(advzip({ optimizationLevel: 4, iterations: 10 }))
 		.pipe(dest('zip/'))
 		.on('end', callback);
 }
@@ -263,6 +263,13 @@ function watch(callback) {
 	callback();
 };
 
+// copy the emoji font
+function emoji(callback) {
+	src(['src/Twemoji.ttf'], { allowEmpty: true })
+		.pipe(dest(dir + '/'))
+		.on('end', callback)
+}
+
 // reload the browser sync instance, or run a new server with live reload
 function reload(callback) {
 	if (!browserSync.active) {
@@ -285,9 +292,9 @@ function getDateString(shorter) {
 }
 
 // exports
-exports.default = series(assets, ico, sw, app, css, html, mf, pack, clean, archive, check, watch);
+exports.default = series(assets, ico, sw, app, css, html, mf, pack, clean, archive, check, emoji, watch);
 exports.pack = series(assets, ico, sw, app, css, html, mf, pack, clean);
-exports.sync = series(app, css, html, pack, clean, reload);
+exports.sync = series(app, css, html, pack, clean, emoji, reload);
 exports.zip = series(archive, check);
 
 /*

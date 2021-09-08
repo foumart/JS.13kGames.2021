@@ -5,7 +5,8 @@
 }
 
 body {
-	background-color: black;
+	background-color: #000;
+	color: #999;
 }
 
 div, canvas {
@@ -18,4 +19,29 @@ div, canvas {
 canvas {
 	touch-action: none;
 	pointer-events: none;
+}
+
+#gameDiv {
+	font-family: emoji, Arial;
+	font-size: 92px;
+}
+
+#gameDiv div {
+	position: relative;
+	cursor: pointer;
+}
+
+#gameDiv nav {
+	margin-left: 10px;
+	float: left;
+	opacity: 0.5;
+}
+
+#gameDiv nav:hover, #frameDiv:hover {
+	opacity: 1;
+}
+
+@font-face {
+	font-family: emoji;
+	src: url(Twemoji.ttf)
 }

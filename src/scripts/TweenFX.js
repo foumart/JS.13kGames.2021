@@ -1,7 +1,7 @@
 class TweenFX {
 
 	static to(_element, _duration, _object, _ease, _callback) {
-		// default: ease in-out
+		// 0 (default): ease in-out
 		// 1: ease in
 		// 2: ease out
 		// *: linear
