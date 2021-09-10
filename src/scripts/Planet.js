@@ -31,6 +31,9 @@ class Planet {
 				this.addInteractions();
 			}
 		}
+
+		this.status = 0;// 0: Unexplored, 1: Explored, 2: Yielded, 3: Colonized
+		this.progress = 0;
 	}
 
 	addInteractions() {

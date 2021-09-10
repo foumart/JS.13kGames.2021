@@ -5,15 +5,14 @@
 let idle;
 // global pause and counter
 let paused;
-let count = 0;
-// variables used to calculate the time passed
-let earthRad = 0;
-let moonRad = 0;
+let count;
+// variable used to calculate the time passed
+let earthRad;
 let month;
 let year;
 
 // a radian value
-const rad = 6.2831853072;
+const rad = Math.PI * 2;
 
 // view settings
 let scales;
@@ -21,14 +20,14 @@ let basescale;
 let sunscale;
 const baseSkew = 0.45;
 const baseOffset = -960;
-let previousOffset;
+let previousOffset = baseOffset;
 let previousScale;
 let skewed = true;
 let zoomed;
 let axisRotation = 0;
 
 // default view settings (before initial zoom)
-// speed: global velocity, initially set to 30 days per second)
+// speed: global velocity of the solar system
 const tween = {
 	scale: 0.1,
 	rotation: 0,
@@ -64,60 +63,60 @@ function getTransitionZoom() {
 }
 
 function prepareGlobals() {
-	globalPlanets = [                                                  // Radius, Orbital period,      Gravity,       Density,      Semi-major axis
-		new Planet(10, 71.6, 113, 988, 'Mercury', 1, 1),               // 2439.7, 88d,       0.241y,   3.7 dm/s²,     5.427 g/cm³,  57.909,050 km
-		new Planet(18, 28.1, 160, 'fb7', 'Venus', 1, 2.6),             // 6051.8, 224.7d,    0.615y,   8.87 dm/s²,    5.243 g/cm³,  108.208,000 km
-		new Planet(20, 17.2, 229, '03f', 'Earth', getMoons(2), 4.4),   // 6371,   365.25d,   1y,       9.80665 dm/s², 5.514 g/cm³,  149.598,023 km
-		new Planet(16, 9.2,  303, 'f20', 'Mars', getMoons(3), 5.4),    // 3389.5, 686.93d,   1.881y,   3.72076 dm/s², 3.9335 g/cm³, 227.939,200 km (1.523679 AU)
-		new Planet(42, 1.46, 453, 'f94', 'Jupiter', getMoons(4), 0.6), // 69911,  4332.6d,   11.862y,  24.79 dm/s²,   1,326 g/cm³,  778.57 Gm (5.2044 AU)
-		new Planet(38, .59,  680, 'fca', 'Saturn', getMoons(5), 1),    // 58232,  10759.22d, 29.457y,  10.44 dm/s²,   0.687 g/cm³,  1,433.53 million km (9.5826 AU)
-		new Planet(32, .206, 847, '8ad', 'Uranus', getMoons(6), 5.5),  // 25362,  30688.5d,  84.0205y, 8.69 dm/s²,    1.27 g/cm³,   2875.04 Gm (19.2185 AU)
-		new Planet(31, .105, 956, '96f', 'Neptune', getMoons(7), 0.2), // 24622,  60182d,    164.8y,   11.15 dm/s²,   1.638 g/cm³,  4.50 billion km (30.07 AU)
-		new Planet(435, 0, 990, 0, 0, 1)
+	globalPlanets = [                                                              // Radius, Orbital period,      Gravity,       Density,      Semi-major axis
+	    new Planet(10, 71.6, 113, 988, 'Mercury', 1, 1),                           // 2439.7, 88d,       0.241y,   3.7 dm/s²,     5.427 g/cm³,  57.909,050 km
+	    new Planet(18, 28.1, 160, 'fb7', 'Venus', 1, 2.6),                         // 6051.8, 224.7d,    0.615y,   8.87 dm/s²,    5.243 g/cm³,  108.208,000 km
+	    new Planet(20, 17.2, 229, '03f', 'Earth-Moon system', getMoons(2), 4.4),   // 6371,   365.25d,   1y,       9.80665 dm/s², 5.514 g/cm³,  149.598,023 km
+	    new Planet(16, 9.2,  303, 'f20', 'Mars', getMoons(3), 5.4),                // 3389.5, 686.93d,   1.881y,   3.72076 dm/s², 3.9335 g/cm³, 227.939,200 km (1.523679 AU)
+	    new Planet(42, 1.46, 453, 'f94', 'Galilean system', getMoons(4), 0.6),     // 69911,  4332.6d,   11.862y,  24.79 dm/s²,   1,326 g/cm³,  778.57 Gm (5.2044 AU)
+	    new Planet(38, .59,  680, 'fca', 'Saturn Ringlet system', getMoons(5), 1), // 58232,  10759.22d, 29.457y,  10.44 dm/s²,   0.687 g/cm³,  1,433.53 million km (9.5826 AU)
+	    new Planet(32, .206, 847, '8ad', 'Uranian system', getMoons(6), 5.5),      // 25362,  30688.5d,  84.0205y, 8.69 dm/s²,    1.27 g/cm³,   2875.04 Gm (19.2185 AU)
+	    new Planet(31, .105, 956, '96f', 'Neptunian system', getMoons(7), 0.2),    // 24622,  60182d,    164.8y,   11.15 dm/s²,   1.638 g/cm³,  4.50 billion km (30.07 AU)
+	    new Planet(435, 0, 990, 0, 0, 1)
 	];
 }
 
 function getMoons(sys, size = 1, type = 1) {
 	return [,,//       Radius,     Velocity,  Orbit, Color, Name, Type       // Radius, Orbit,  Gravity,   Density,     Semi-major axis
 		[// Earth
-			new Planet(20*size-15, 208, 115*size-85, 999, 'Moon', 3-size)    // 1737.4, 27.32d, 1.62 m/s², 3.344 g/cm³, 384,399 km
+		    new Planet(20*size-15, 208, 115*size-85, 999, 'Moon', 3-size)    // 1737.4, 27.32d, 1.62 m/s², 3.344 g/cm³, 384,399 km
 		],
 		[// Mars
-			new Planet(.9, -200, 22), new Planet(.7, 160, 29)
+		    new Planet(.9, -200, 22), new Planet(.7, 160, 29)
 		],
 		[// Jupiter
-			new Planet(5.2 * size, 252, 31 * type + 21, 'ec6', 'Io', 2),     // 1821.6, 1.77d, 1.796 m/s², 3.528 g/cm³, 421,700 km
-			new Planet(4.2 * size, 128, 42 * type + 26, 'a9e', 'Europa', 2), // 1560.8, 3.55d, 1.314 m/s², 3.013 g/cm³, 670,900 km
-			new Planet(8 * size, 68, 54 * type + 34, 'db9', 'Ganymede', 2),  // 2634.1, 7.15d, 1.428 m/s², 1.936 g/cm³, 1.070,400 km
-			new Planet(7 * size, 32, 67 * type + 42, 979, 'Callisto', 2)     // 2410.3, 16.7d, 1.235 m/s², 1.834 g/cm³, 1.882,700 km
+		    new Planet(5.2 * size, 252, 31 * type + 21, 'ec6', 'Io', 2),     // 1821.6, 1.77d, 1.796 m/s², 3.528 g/cm³, 421,700 km
+		    new Planet(4.2 * size, 128, 42 * type + 26, 'a9e', 'Europa', 2), // 1560.8, 3.55d, 1.314 m/s², 3.013 g/cm³, 670,900 km
+		    new Planet(8 * size, 68, 54 * type + 34, 'db9', 'Ganymede', 2),  // 2634.1, 7.15d, 1.428 m/s², 1.936 g/cm³, 1.070,400 km
+		    new Planet(7 * size, 32, 67 * type + 42, 979, 'Callisto', 2)     // 2410.3, 16.7d, 1.235 m/s², 1.834 g/cm³, 1.882,700 km
 		],
 		// Saturn
 		(size > 1 ? [
-			new Planet(1.6 * size, 280, 60.75 * type, 779, 'Enceladus', 2),  // 252.1,  1.37d, 0.113 m/s², 1.609 g/cm³, 238,020 km
-			new Planet(2.4 * size, 220, 68.25 * type, 777, 'Tethys', 2),     // 531.1,  1.89d, 0.146 m/s², 0.984 g/cm³, 294,660 km
-			new Planet(2.5 * size, 160, 75.75 * type, 999, 'Dione', 2),      // 561.4,  2.74d, 0.232 m/s², 1.478 g/cm³, 377,400 km
+		    new Planet(1.6 * size, 280, 60.75 * type, 779, 'Enceladus', 2),  // 252.1,  1.37d, 0.113 m/s², 1.609 g/cm³, 238,020 km
+		    new Planet(2.4 * size, 220, 68.25 * type, 777, 'Tethys', 2),     // 531.1,  1.89d, 0.146 m/s², 0.984 g/cm³, 294,660 km
+		    new Planet(2.5 * size, 160, 75.75 * type, 999, 'Dione', 2),      // 561.4,  2.74d, 0.232 m/s², 1.478 g/cm³, 377,400 km
 		] : []).concat(
 		[
-			new Planet(2.8 * size, 96, 87 * type - 11, 766, 'Rhea', 2),      // 763.8,  4.52d,  0.264 m/s², 1.236 g/cm³  527,040 km
-			new Planet(7.5 * size, 30, 98 * type - 9, 'fc8', 'Titan', 2),    // 2574.7, 15.95d, 1.352 m/s², 1.88 g/cm³,  1.221,830 km
-			new Planet(2.7 * size, 8, 107 * type - 1, 869, 'Iapetus', 2),    // 734.5,  79.32d, 0.223 m/s², 1.088 g/cm³, 3.561,300 km
-			new Planet(1*size, 1, 31*type+15), new Planet(1*size, 1, 35*type+16),
-			new Planet(1*size, 1, 39*type+17), new Planet(1*size, 1, 44*type+19),
-			new Planet(1*size, 1, 48*type+20)// saturn rings
+		    new Planet(2.8 * size, 96, 87 * type - 11, 766, 'Rhea', 2),      // 763.8,  4.52d,  0.264 m/s², 1.236 g/cm³  527,040 km
+		    new Planet(7.5 * size, 30, 98 * type - 9, 'fc8', 'Titan', 2),    // 2574.7, 15.95d, 1.352 m/s², 1.88 g/cm³,  1.221,830 km
+		    new Planet(2.7 * size, 8, 107 * type - 1, 869, 'Iapetus', 2),    // 734.5,  79.32d, 0.223 m/s², 1.088 g/cm³, 3.561,300 km
+		    new Planet(1*size, 1, 31*type+15), new Planet(1*size, 1, 35*type+16),
+		    new Planet(1*size, 1, 39*type+17), new Planet(1*size, 1, 44*type+19),
+		    new Planet(1*size, 1, 48*type+20)// saturn rings
 		]),
 		// Uranus
 		(size > 1 ? [
-			new Planet(1.5 * size, 12, 35 * type, 'bbb', 'Miranda', 2),      // 235.8, 1.4135d, 0.079 m/s², 1.20 g/cm³,  129,900 km
-			new Planet(2.5 * size, 16, 42.25 * type, 999, 'Ariel', 2),       // 578.9, 2.520d,  0.269 m/s², 1.592 g/cm³, 190,900 km
-			new Planet(2.5 * size, 22, 49.5 * type, 555, 'Umbriel', 2),      // 584.7, 4.144d,  0.2 m/s²,   1.39 g/cm³,  266,000 km
+		    new Planet(1.5 * size, 12, 35 * type, 'bbb', 'Miranda', 2),      // 235.8, 1.4135d, 0.079 m/s², 1.20 g/cm³,  129,900 km
+		    new Planet(2.5 * size, 16, 42.25 * type, 999, 'Ariel', 2),       // 578.9, 2.520d,  0.269 m/s², 1.592 g/cm³, 190,900 km
+		    new Planet(2.5 * size, 22, 49.5 * type, 555, 'Umbriel', 2),      // 584.7, 4.144d,  0.2 m/s²,   1.39 g/cm³,  266,000 km
 		] : []).concat(
 		[
-			new Planet(2.9 * size, 36, 64 * type - 22, 986, 'Titania', 2),   // 788.4, 8.7d,    0,367 m/s², 1,71 g/cm³,  435,840 km
-			new Planet(2.8 * size, 32, 70 * type - 18, 'a9c', 'Oberon', 2),  // 761.4, 13.46d,  0,346 m/s², 1.63 g/cm³,  582,600 km
+		    new Planet(2.9 * size, 36, 64 * type - 22, 986, 'Titania', 2),   // 788.4, 8.7d,    0,367 m/s², 1,71 g/cm³,  435,840 km
+		    new Planet(2.8 * size, 32, 70 * type - 18, 'a9c', 'Oberon', 2),  // 761.4, 13.46d,  0,346 m/s², 1.63 g/cm³,  582,600 km
 		]),
 		// Neptune
 		[
-			new Planet(4 * size, -12, 46 * type, 'e9a', 'Triton', 2)         // 1353.4, 5.875d, 0,779 m/s², 2.061 g/cm³, 354.800 km
+		    new Planet(4 * size, -12, 46 * type, 'e9a', 'Triton', 2)         // 1353.4, 5.875d, 0,779 m/s², 2.061 g/cm³, 354.800 km
 		]
 	][sys];
 }
@@ -166,7 +165,7 @@ function prepareSystem(sys = 0) {
 	// The Sun or a zoomed planet when inside a nested planetary/moon system
 	sun = new Planet(90, 1, 0,
 		['ff3', 'ff3', '03f', 0, 'f94', 'fca', '8ad', '96f'][system],
-		['Terrestrial planetary', 'The Solar', 'Earth and Moon', 0, 'Galilean', 'Saturn Ringlet', 'Uranian', 'Neptunian'][system] + ' system',
+		['Terrestrial planetary system', 'The Solar system', 'Earth', 0, 'Jupiter', 'Saturn', 'Uranus', 'Neptune'][system],
 		planets
 	);
 	spaceDiv.append(sun.div);
@@ -180,6 +179,8 @@ function prepareSystem(sys = 0) {
 			tween.scale = scales[selectedPlanet];
 			tween.offset = baseOffset + planet.orbitRadius * tween.scale;
 			tween.rotation = 360 - Math.atan2(sun.y - planet.y, sun.x - planet.x) * 180 / Math.PI;
+			updateUI();
+			//updateYearUI();
 		} else {
 			// getting deeper into a nested planetary system
 			idle = false;
@@ -193,9 +194,32 @@ function prepareSystem(sys = 0) {
 	}
 }
 
-function runSolarSystem() {
+function runSolarSystem(_back) {
 	clearUI();
 	updateUI();
+	if (_back) {
+		// getting back from surface view with a slight zoom-out, or just perform a quick intro when reloading the game
+		updateTimeUI();
+		idle = false;
+		skewed = false;
+		TweenFX.to(tween, 20, {scale: previousScale || getInitialZoom(), alpha: 1, offset: previousOffset, skew: 1}, 0, () => idle = true);
+	} else if (system > 1) {
+		console.log('here');
+		sunscale = getInitialZoom();
+		tween.skew = 1;
+		skewed = false;
+		TweenFX.to(tween, 50, {scale: sunscale}, 0, () => idle = true);
+	} else if (tween.scale == 0.1) {
+		// initial slow intro zoom on new game start
+		TweenFX.to(tween, 180, {scale: sunscale, skew: 1}, 0, () => {
+			TweenFX.to(tween, 160, {speed: 0.018}, 0, () => {
+				uiDiv.style = '';
+				toggleSkew(2);
+				// TODO: tutorial?
+			});
+		});
+	}
+
 	animate();
 }
 
@@ -215,6 +239,7 @@ function unpause() {
 
 function increaseSpeed() {
 	if (!paused) {
+		//soundFX.playSound(100 + 100 * tween.speed, 10, 10);
 		if (tween.speed < 0.02) tween.speed = .036;
 		else if (tween.speed < 0.05) tween.speed += .054;
 		else if (tween.speed < 0.1) tween.speed += .09;
@@ -226,6 +251,7 @@ function increaseSpeed() {
 
 function decreaseSpeed() {
 	if (!paused) {
+		//soundFX.playSound(200 + 100 * tween.speed, -10, 10);
 		if (tween.speed > 0.3) tween.speed -= .18;
 		else if (tween.speed > 0.1) tween.speed -= .09;
 		else if (tween.speed > 0.05) tween.speed -= .054;
@@ -237,7 +263,7 @@ function decreaseSpeed() {
 
 function onClick(event) {
 	if (idle && (tween.skew == 1 || tween.skew == baseSkew)) {
-		//event.target.style.opacity = 0;
+		event.target.style.opacity = 0;
 		if (event.target.link == sky) {
 			if (zoomed) {
 				toggleZoom();
@@ -278,8 +304,11 @@ function onClick(event) {
 									moon.radian = rotations[index];
 								}
 							});
-						} else {
+							updateUI();
+						} else if (event.target.link.status) {
 							enterSurface();
+						} else {
+							//soundFX.deny
 						}
 					}
 				}
@@ -340,24 +369,6 @@ function onWheel(event) {
 function zoom() {
 	sunscale = Math.min(Math.max(getInitialZoom() * .4, sunscale), 3.5);
 	TweenFX.to(tween, 30, {scale: sunscale}, 2);
-}
-
-// initial zoom on start game or reload
-function initialZoom() {
-	if (system >= 2) {
-		sunscale = getInitialZoom();
-		tween.skew = 1;
-		skewed = false;
-		TweenFX.to(tween, 50, {scale: sunscale}, 0, () => idle = true);
-	} else {
-		TweenFX.to(tween, 180, {scale: sunscale, skew: 1}, 0, () => {
-			TweenFX.to(tween, 160, {speed:0.018}, 0, () => {
-				uiDiv.style = '';
-				toggleSkew(2);
-				// TODO: tutorial?
-			});
-		});
-	}
 }
 
 // enter planet/moon surface mode
@@ -445,6 +456,7 @@ function getPlanetsRotation(selected) {
 function animate() {
 	if (state && state < 3) {
 		count += 1;
+		earthRad += tween.speed;
 		// OPT: clearRect the whole canvas, nomatter the rotation
 		if (tween.rotation) {
 			spaceContext.clearRect(0, 0, spaceCanvas.width, spaceCanvas.height);
@@ -466,14 +478,8 @@ function animate() {
 			}
 			spaceContext.stroke();
 		}
-		
-		if (system < 2) {
-			earthRad += tween.speed;
-		} else {
-			moonRad += tween.speed;
-		}
 
-		const _year = (2021 + (earthRad + moonRad) / 365.25);
+		const _year = (2021 + earthRad / 365.25);
 		const _month = 1 + (0|(year - (0|year)) * 12);
 		if (year != _year || month != _month) {
 			year = _year;
@@ -482,10 +488,11 @@ function animate() {
 		}
 
 		if (count < 346) {
-			r = count < 336 ? 100 : (345 - count) * 10;
+			r = count < 336 ? 101 : (345 - count) * 10;
+			uiDiv.style = `margin-top:${r}px`;
 			updateYearUI(r);
 			updateTimeUI(r);
-		}
+		} else uiDiv.style = '';
 
 		// don't render planets which are outside the visible area
 		if (system < 2) {

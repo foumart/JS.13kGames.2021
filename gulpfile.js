@@ -66,21 +66,6 @@ function ico(callback) {
 		.on('end', callback)
 }
 
-// compress other graphical assets
-function assets(callback) {
-	src(['src/assets/*'], { allowEmpty: true })
-		// optimize PNGs
-		.pipe(imagemin([imagemin.optipng({optimizationLevel: 7})]))
-		// optimize GIFs
-		//.pipe(imagemin([imagemin.gifsicle({interlaced: true})]))
-		// optimize JPGs
-		//.pipe(imagemin([imagemin.mozjpeg({quality: 75, progressive: true})]))
-		// optimize SVGs
-		//.pipe(imagemin([imagemin.svgo({plugins: [{removeViewBox: false}, {cleanupIDs: true}]})
-		.pipe(dest(dir + '/assets/'))
-		.on('end', callback)
-}
-
 // prepare service worker script
 function sw(callback) {
 	if (pwa) {
@@ -194,12 +179,31 @@ function mf(callback) {
 // inline js and css into html and remove unnecessary stuff
 function pack(callback) {
 	const fs = require('fs');
-	const css = fs.readFileSync(dir + '/tmp/temp.css', 'utf8');
+	let css = fs.readFileSync(dir + '/tmp/temp.css', 'utf8');
 	let js = fs.readFileSync(dir + '/tmp/app.js', 'utf8');
 	let functionName;
+	const elementIds = ['main', 'bgrCanvas', 'spaceCanvas', 'gameCanvas', 'overCanvas', 'spaceDiv', 'gameDiv', 'frameDiv', 'uiDiv', 'menuDiv', 'resDiv'];
+	const variableNames = [];
 	if (!debug) {
+		// fix ontouchstart event bug
 		const occurance = js.indexOf('ontouchstart');
 		functionName = js.substr(occurance + 13, js.charAt(occurance + 15) == ',' || js.charAt(occurance + 15) == ':' ? 2 : 1);
+
+		// remove getElementById calls that are required by the compiler. The Id named html elements are directly available in js as globals.
+		const segmentedJs = js.split('=document.getElementById("');
+		variableNames.push(segmentedJs[0].substr(segmentedJs[0].lastIndexOf(' ') + 1));
+		segmentedJs[0] = segmentedJs[0].substring(13, segmentedJs[0].lastIndexOf(' ') - 5);
+		for (let i = 1; i < segmentedJs.length - 1; i++) {
+			variableNames.push(segmentedJs[i].split(',')[1]);
+		}
+		segmentedJs[segmentedJs.length-1] = segmentedJs[segmentedJs.length-1].substring(segmentedJs[segmentedJs.length-1].indexOf(';') + 1);
+		js = segmentedJs[0] + segmentedJs[segmentedJs.length-1];
+
+		// replace css ids
+		for (let i = 0; i < elementIds.length; i++) {
+			let regex = new RegExp(elementIds[i], 'g');
+			css = css.replace(regex, variableNames[i]);
+		}
 	}
 	src(dir + '/tmp/temp.html', { allowEmpty: true })
 		.pipe(replace('{TITLE}', title, replaceOptions))
@@ -207,19 +211,22 @@ function pack(callback) {
 		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
 		.pipe(replace('"', '', replaceOptions))
 		.pipe(replace('rep_js', '<script>' + fs.readFileSync(dir + '/tmp/temp.js', 'utf8') + '</script>', replaceOptions))
-		.pipe(gulpif(!debug, replace('"use strict";', '', replaceOptions)))
 		.pipe(concat('index.html'))
 		.pipe(dest(dir + '/'))
 		.on('end', () => {
-			src(['src/game.html'], { allowEmpty: true })
-			.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
-			.pipe(replace('"', '', replaceOptions))
-			.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
-			.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
-			.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
-			.pipe(concat('game.html'))
-			.pipe(dest(dir + '/'))
-			.on('end', callback);
+			let stream = src(['src/game.html'], { allowEmpty: true });
+			if (!debug) for (let i = 0; i < elementIds.length; i++) {
+				stream = stream.pipe(replace(elementIds[i], variableNames[i], replaceOptions));
+			}
+			stream
+				.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
+				.pipe(replace('"', '', replaceOptions))
+				.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
+				.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
+				.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
+				.pipe(concat('game.html'))
+				.pipe(dest(dir + '/'))
+				.on('end', callback);
 		});
 }
 
@@ -228,9 +235,10 @@ function clean() {
 	return del(dir + '/tmp/');
 }
 
-// package zip (exclude the Temoji.ttf font if it's being used locally)
+// package zip (exclude the Twemoji.ttf font if it's being used locally)
 function archive(callback) {
-	src([dir + '/*', dir + '/*/*', '!'+ dir + '/*.ttf'], { allowEmpty: true })
+	if (debug) callback();
+	else src([dir + '/*', dir + '/*/*', '!'+ dir + '/*.ttf'], { allowEmpty: true })
 		.pipe(zip(test ? 'game.zip' : 'game_' + timestamp + '.zip'))
 		.pipe(advzip({ optimizationLevel: 4, iterations: 10 }))
 		.pipe(dest('zip/'))
@@ -239,13 +247,16 @@ function archive(callback) {
 
 // output the zip filesize
 function check(callback) {
-	var fs = require('fs');
-	const size = fs.statSync(test ? 'zip/game.zip' : 'zip/game_' + timestamp + '.zip').size;
-	const limit = 1024 * 13;
-	const left = limit - size;
-	const percent = Math.abs(Math.round((left / limit) * 10000) / 100);
-	console.log(`        ${size}        ${left} bytes ${left < 0 ? 'overhead' : 'remaining'} (${percent}%)`);
-	callback();
+	if (debug) callback();
+	else {
+		var fs = require('fs');
+		const size = fs.statSync(test ? 'zip/game.zip' : 'zip/game_' + timestamp + '.zip').size;
+		const limit = 1024 * 13;
+		const left = limit - size;
+		const percent = Math.abs(Math.round((left / limit) * 10000) / 100);
+		console.log(`        ${size}        ${left} bytes ${left < 0 ? 'overhead' : 'remaining'} (${percent}%)`);
+		callback();
+	}
 }
 
 // watch for changes in the source folder
@@ -265,7 +276,7 @@ function watch(callback) {
 
 // copy the emoji font
 function emoji(callback) {
-	src(['src/Twemoji.ttf'], { allowEmpty: true })
+	src(['src/assets/Twemoji.ttf'], { allowEmpty: true })
 		.pipe(dest(dir + '/'))
 		.on('end', callback)
 }
@@ -292,9 +303,9 @@ function getDateString(shorter) {
 }
 
 // exports
-exports.default = series(assets, ico, sw, app, css, html, mf, pack, clean, archive, check, emoji, watch);
-exports.pack = series(assets, ico, sw, app, css, html, mf, pack, clean);
-exports.sync = series(app, css, html, pack, clean, emoji, reload);
+exports.default = series(ico, sw, app, css, html, mf, pack, clean, archive, check, emoji, watch);
+exports.pack = series(ico, sw, app, css, html, mf, pack, clean);
+exports.sync = series(app, css, html, pack, clean, reload);
 exports.zip = series(archive, check);
 
 /*

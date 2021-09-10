@@ -23,22 +23,43 @@ canvas {
 
 #gameDiv {
 	font-family: emoji, Arial;
-	font-size: 92px;
+	font-size: 60px;
 }
 
 #gameDiv div {
 	position: relative;
-	cursor: pointer;
 }
 
 #gameDiv nav {
-	margin-left: 10px;
+	margin: 0 10px;
 	float: left;
-	opacity: 0.5;
+	opacity: 0.75;
+	font-size: 99px;
+	cursor: pointer;
 }
 
 #gameDiv nav:hover, #frameDiv:hover {
 	opacity: 1;
+}
+
+#menuDiv {
+	text-align: center;
+	margin-top: -60px;
+}
+
+#menuDiv nav {
+	margin: 9px;
+	float: unset;
+	font-size: 45px;
+}
+
+#resDiv {
+	margin: 9px;
+}
+
+#resDiv b, #menuDiv b {
+	font-family: Arial;
+	font-size: 50px;
 }
 
 @font-face {
