@@ -1,33 +1,13 @@
 // Solar / Planetary system view script
 // ------------------------------------
 
-// prevents interactions during transitions
-let idle;
-// global pause and counter
-let paused;
-let count;
-// variable used to calculate the time passed
-let earthRad;
-let month;
-let year;
-
-// a radian value
-const rad = Math.PI * 2;
-
-// view settings
-let scales;
-let basescale;
-let sunscale;
+const maxScale = 3.5;
 const baseSkew = 0.45;
 const baseOffset = -960;
-let previousOffset = baseOffset;
-let previousScale;
-let skewed = true;
-let zoomed;
-let axisRotation = 0;
+const rad = Math.PI * 2;
 
 // default view settings (before initial zoom)
-// speed: global velocity of the solar system
+// speed: global velocity of the solar system (0.018 1d, 0.036 2d, etc.)
 const tween = {
 	scale: 0.1,
 	rotation: 0,
@@ -37,8 +17,20 @@ const tween = {
 	speed: 0.9
 }
 
+// prevents interactions during transitions
+let idle;
+// global pause and counter
+let paused;
+let count;
+// variable used to calculate the time passed
+let earthRad;
+let month;
+let year;
+let day;
+let tutorial;
+
 // current active planet / moon
-let selectedPlanet = 0;
+let selectedPlanet;
 
 // global objects
 let globalPlanets;
@@ -46,6 +38,17 @@ let sun;
 let planets;
 let sky;
 let stars = [];
+let planet;
+
+// planetary / solar system view settings
+let scales;
+let basescale;
+let sunscale;
+let previousOffset = baseOffset;
+let previousScale;
+let skewed = true;
+let zoomed;
+let axisRotation = 0;
 
 // interactive website to view planets positions at given time: https://in-the-sky.org/solarsystem.php
 
@@ -55,18 +58,11 @@ function addStars() {
 	}
 }
 
-function getInitialZoom() {
-	return [1.6, 1, 2.8, 1, 2, 2.4, 2.6, 3][system];
-}
-function getTransitionZoom() {
-	return [1, 1, 0.85, 1, 1.05, .62, .5, .4][system];
-}
-
 function prepareGlobals() {
 	globalPlanets = [                                                              // Radius, Orbital period,      Gravity,       Density,      Semi-major axis
-	    new Planet(10, 71.6, 113, 988, 'Mercury', 1, 1),                           // 2439.7, 88d,       0.241y,   3.7 dm/s²,     5.427 g/cm³,  57.909,050 km
-	    new Planet(18, 28.1, 160, 'fb7', 'Venus', 1, 2.6),                         // 6051.8, 224.7d,    0.615y,   8.87 dm/s²,    5.243 g/cm³,  108.208,000 km
-	    new Planet(20, 17.2, 229, '03f', 'Earth-Moon system', getMoons(2), 4.4),   // 6371,   365.25d,   1y,       9.80665 dm/s², 5.514 g/cm³,  149.598,023 km
+	    new Planet(10, 71.6, 113, 988, 'Mercury', 1, 0.9),                         // 2439.7, 88d,       0.241y,   3.7 dm/s²,     5.427 g/cm³,  57.909,050 km
+	    new Planet(18, 28.1, 160, 'fb7', 'Venus', 1, 2.3),                         // 6051.8, 224.7d,    0.615y,   8.87 dm/s²,    5.243 g/cm³,  108.208,000 km
+	    new Planet(20, 17.2, 229, '03f', 'Earth-Moon system', getMoons(2), 4.5),   // 6371,   365.25d,   1y,       9.80665 dm/s², 5.514 g/cm³,  149.598,023 km
 	    new Planet(16, 9.2,  303, 'f20', 'Mars', getMoons(3), 5.4),                // 3389.5, 686.93d,   1.881y,   3.72076 dm/s², 3.9335 g/cm³, 227.939,200 km (1.523679 AU)
 	    new Planet(42, 1.46, 453, 'f94', 'Galilean system', getMoons(4), 0.6),     // 69911,  4332.6d,   11.862y,  24.79 dm/s²,   1,326 g/cm³,  778.57 Gm (5.2044 AU)
 	    new Planet(38, .59,  680, 'fca', 'Saturn Ringlet system', getMoons(5), 1), // 58232,  10759.22d, 29.457y,  10.44 dm/s²,   0.687 g/cm³,  1,433.53 million km (9.5826 AU)
@@ -121,6 +117,18 @@ function getMoons(sys, size = 1, type = 1) {
 	][sys];
 }
 
+function getInitialZoom() {
+	return [1.6, 1, 2.8, 1, 2, 2.4, 2.6, 3][system];
+}
+function getTransitionZoom() {
+	return [1, 1, 0.88, 1, 1.05, .62, .5, .4][system];
+}
+
+function setScales() {
+	//scales = (system >= 5 ? [4.8, 4.7, 4.5, 4.2, 3.5, 3] : [4.5, 4, 3, 2, 1.1, .46, .18, .05]).map(scale => scale + (4 - state) / 2);
+	scales = system >= 5 ? [5.8, 5.7, 5.5, 5.2, 4.5, 4] : [5.5, 5, 4, 3, 2.1, 1.46, 1.18, 1.05];
+}
+
 function prepareSystem(sys = 0) {
 	let oldsys = system;
 	system = sys;
@@ -131,14 +139,14 @@ function prepareSystem(sys = 0) {
 	});
 	spaceDiv.innerHTML = '';
 
-	scales = system >= 5 ? [5.8, 5.7, 5.5, 5.2, 4.5, 4] : [5.8, 5.2, 3.8, 2.9, 2.1, 1.46, 1.18, 1.05]
+	setScales();
 	basescale = getInitialZoom();
 	sunscale = basescale;
 
 	// Solar system setting:
 	if (system < 2) {
-		globalPlanets.forEach(planet => {
-			planet.addInteractions();
+		globalPlanets.forEach(globalPlanet => {
+			globalPlanet.addInteractions();
 		});
 		planets = globalPlanets;
 		sky = planets[planets.length - 1]
@@ -150,22 +158,22 @@ function prepareSystem(sys = 0) {
 	// sky: invisible button outside the solar/planetary system - clicking it gets you one level out of the nested system.
 
 	// On the Terrestrial system draw the outer planets much farther away to be more realistic during the initial zoom.
-	// Also don't include them in the render cicle. // OPT: not that necessary - can be deleted to save space.
+	// Also don't include them in the render cicle. // OPT: not that necessary - can be deleted to save some bytes.
 	if (system < 2) {
 		planets[4].orbitRadius = planets[4].baseRadius * (!system ? 1.5 : 1);
 		planets[5].orbitRadius = planets[5].baseRadius * (!system ? 2 : 1);
 		planets[6].orbitRadius = planets[6].baseRadius * (!system ? 3 : 1);
 		planets[7].orbitRadius = planets[7].baseRadius * (!system ? 4 : 1);
-		if (system) {
+		/*if (system) {
 			planets[6].velocity = planets[6].baseVelocity;
 			planets[7].velocity = planets[7].baseVelocity;
-		}
+		}*/
 	}
 
 	// The Sun or a zoomed planet when inside a nested planetary/moon system
 	sun = new Planet(90, 1, 0,
 		['ff3', 'ff3', '03f', 0, 'f94', 'fca', '8ad', '96f'][system],
-		['Terrestrial planetary system', 'The Solar system', 'Earth', 0, 'Jupiter', 'Saturn', 'Uranus', 'Neptune'][system],
+		['Terrestrial system', 'The Solar system', 'Earth', 0, 'Jupiter', 'Saturn', 'Uranus', 'Neptune'][system],
 		planets
 	);
 	spaceDiv.append(sun.div);
@@ -173,9 +181,8 @@ function prepareSystem(sys = 0) {
 	if (state) {
 		if (system < 2) {
 			// getting back from planet system
-			selectedPlanet = oldsys > 2 ? oldsys : 2;
+			selectPlanet(oldsys > 2 ? oldsys : 2);
 			zoomed = true;
-			const planet = sun.moons[selectedPlanet];
 			tween.scale = scales[selectedPlanet];
 			tween.offset = baseOffset + planet.orbitRadius * tween.scale;
 			tween.rotation = 360 - Math.atan2(sun.y - planet.y, sun.x - planet.x) * 180 / Math.PI;
@@ -189,12 +196,26 @@ function prepareSystem(sys = 0) {
 			tween.rotation = 0;
 			tween.scale = sunscale;
 			tween.offset = baseOffset;
-			TweenFX.to(tween, 30, {scale: getInitialZoom()}, 0, () => idle = true);
+			TweenFX.to(tween, 30, {scale: getInitialZoom()}, 0, () => {
+				// tutorial last step in the solar system view
+				if (tutorial) {
+					tutorial = 2;
+					selectedPlanet = -1;
+					enterSurface();
+				}
+				idle = true;
+			});
 		}
 	}
 }
 
+function selectPlanet(selected) {//console.log('state:'+state, 'system:'+system, 'old:'+selectedPlanet, 'new:'+selected, sun)
+	selectedPlanet = selected;
+	planet = system > 1 && selectedPlanet > sun.moons.length - 1 ? globalPlanets[system] : sun.moons[selectedPlanet];
+}
+
 function runSolarSystem(_back) {
+	setScales();
 	clearUI();
 	updateUI();
 	if (_back) {
@@ -203,24 +224,21 @@ function runSolarSystem(_back) {
 		idle = false;
 		skewed = false;
 		TweenFX.to(tween, 20, {scale: previousScale || getInitialZoom(), alpha: 1, offset: previousOffset, skew: 1}, 0, () => idle = true);
-	} else if (system > 1) {
-		console.log('here');
-		sunscale = getInitialZoom();
-		tween.skew = 1;
-		skewed = false;
-		TweenFX.to(tween, 50, {scale: sunscale}, 0, () => idle = true);
 	} else if (tween.scale == 0.1) {
-		// initial slow intro zoom on new game start
+		// initial slow intro zoom on new game start and the display of tutorial instructions
 		TweenFX.to(tween, 180, {scale: sunscale, skew: 1}, 0, () => {
-			TweenFX.to(tween, 160, {speed: 0.018}, 0, () => {
+			TweenFX.to(tween, 195, {speed: 0.018}, 0, () => {
 				uiDiv.style = '';
+				tutorial = 1;
+				pause();
 				toggleSkew(2);
-				// TODO: tutorial?
 			});
 		});
 	}
+}
 
-	animate();
+function tutClick() {
+	tweenToPlanet(2);
 }
 
 function pause() {
@@ -231,6 +249,13 @@ function pause() {
 }
 
 function unpause() {
+	if (tutorial) {
+		// prepare for the tutorial on the planet surface mode
+		menuDiv.style = '';
+		menuDiv.innerHTML = '';
+		prepareSystem(selectedPlanet);
+	}
+
 	tween.speed = paused;
 	paused = 0;
 	uiDiv.children[1].innerHTML = '&#x23F8;';
@@ -267,7 +292,7 @@ function onClick(event) {
 		if (event.target.link == sky) {
 			if (zoomed) {
 				toggleZoom();
-			} else if (system > 1) {
+			} else if (system > 1 && observatory) {
 				// get back from planet system
 				idle = false;
 				TweenFX.to(tween, 15, {scale: getTransitionZoom()}, 0, () => {
@@ -340,34 +365,31 @@ function onClick(event) {
 }
 
 function onWheel(event) {
-	let trueEvent = event.hasOwnProperty('preventDefault');
-	if (trueEvent) event.preventDefault();
 	if (!zoomed) {
 		sunscale += event.deltaY * - sunscale * 0.002;
 		zoom();
-	} else if (!trueEvent) {
-		return;
-	} else if (event.deltaY > 0) {
-		if (selectedPlanet < sun.moons.length - 1) {
+		if (sunscale == maxScale) {
+			tweenToPlanet(0);
+		}
+	} else if (event.deltaY > 0) {console.log(state, system, sun.moons.length)
+		if (selectedPlanet < (state == 1 && system < 2 ? 3 : sun.moons.length - 2)) {
 			tweenToPlanet(selectedPlanet + 1);
 		} else {
 			toggleZoom();
-			sunscale = 0.6;
-			zoom();
 		}
 	} else if (event.deltaY < 0) {
 		if (selectedPlanet > 0) {
 			tweenToPlanet(selectedPlanet - 1);
 		} else {
 			toggleZoom();
-			sunscale = 5;
+			sunscale = maxScale;
 			zoom();
 		}
 	}
 }
 
 function zoom() {
-	sunscale = Math.min(Math.max(getInitialZoom() * .4, sunscale), 3.5);
+	sunscale = Math.min(Math.max(getInitialZoom() * .4, sunscale), maxScale);
 	TweenFX.to(tween, 30, {scale: sunscale}, 2);
 }
 
@@ -380,24 +402,32 @@ function enterSurface() {
 	TweenFX.to(tween, 20, {
 		alpha: 0,
 		scale: 9,
-		offset: zoomed ? baseOffset + sun.moons[selectedPlanet].orbitRadius * 9 : baseOffset
+		offset: zoomed ? baseOffset + planet.orbitRadius * 9 : baseOffset
 	}, 0, () => {
 		idle = true;
 		switchState(state + 2);
+		if (tutorial) {
+			menuDiv.style = `width:1920px;height:930px;pointer-events:none;top:150px`;
+			menuDiv.innerHTML = `<div style=height:550px><u>Planetary surface mode:</u><br>Build facilities through the Headquarters.<br><br>Collect resources to launch space exploration programs.<br><br>When a terrestrial body is explored you can run missions<br>for minerals mining, search for life, or establish a colony.<br>Enjoy!</div><div style=width:720px;height:380px;float:left></div><div style=width:720px;height:380px;float:right></div>`;
+		}
 	});
 }
 
 function tweenToPlanet(selected) {
 	idle = false;
 	zoomed = false;
-	selectedPlanet = selected;
-	const planet = sun.moons[selectedPlanet];
+	selectPlanet(selected);
 	TweenFX.to(tween, 30, {
 		scale: scales[selectedPlanet],
 		offset: baseOffset + planet.orbitRadius * scales[selectedPlanet],
 		rotation: (360 + planet.velocity * 1800 * tween.speed) - Math.atan2(sun.y - planet.y, sun.x - planet.x) * 180 / Math.PI
 	}, 3, () => {
-		idle = true;
+		if (tutorial) {
+			menuDiv.style = `width:1920px;height:1080px;pointer-events:none;`;
+			menuDiv.innerHTML = `<div><br><br><u>Solar System mode:</u><br><br>On the left you can see information for the<br>currently selected planet or planetary system.<br><br>Including a summary of the resources collected<br>on the planet and in each of the inner moons<br>on which you have established presence.<br><br>By default time runs at one day per second.<br>Use the time controls only when you really need<br>to speed up the timeflow. Tap &#x25B6; to continue.</div><div style=width:140px;height:140px;float:left></div><div style=width:1620px;height:140px;float:right></div>`;
+		} else {
+			idle = true;
+		}
 		zoomed = true;
 		updateUI();
 	});
@@ -407,7 +437,7 @@ function toggleZoom() {
 	zoomed = !zoomed;
 	if (!zoomed) {
 		sunscale = getInitialZoom();
-		selectedPlanet = system;
+		selectPlanet(system);
 		idle = false;
 		if (tween.rotation) {
 			TweenFX.to(tween, 30, {scale: sunscale, offset: -960}, 0, () => idle = true);
@@ -424,8 +454,8 @@ function toggleSkew(selected) {
 	if (skewed) {
 		normalizePlanetsRotation();
 	}
-	idle = false;
-	TweenFX.to(tween, 30, {skew: skewed ? baseSkew : 1}, 0, () => {
+	idle = false;console.log(tween.skew)
+	TweenFX.to(tween, tween.skew == skewed ? baseSkew : 1 ? 0 : 30, {skew: skewed ? baseSkew : 1}, 0, () => {
 		if (selected > -1) {
 			tweenToPlanet(selected);
 		} else {
@@ -435,8 +465,8 @@ function toggleSkew(selected) {
 }
 
 function normalizePlanetsRotation() {
-	sun.moons.forEach(planet => {
-		planet.radian += tween.rotation * Math.PI / 180;
+	sun.moons.forEach(moon => {
+		moon.radian += tween.rotation * Math.PI / 180;
 	});
 	axisRotation = (axisRotation + tween.rotation) % 360;
 	tween.rotation = 0;
@@ -454,65 +484,75 @@ function getPlanetsRotation(selected) {
 }
 
 function animate() {
-	if (state && state < 3) {
-		count += 1;
-		earthRad += tween.speed;
-		// OPT: clearRect the whole canvas, nomatter the rotation
-		if (tween.rotation) {
-			spaceContext.clearRect(0, 0, spaceCanvas.width, spaceCanvas.height);
-		} else {
-			spaceContext.clearRect(spaceCanvas.width / 4 - 2, spaceCanvas.height / 4 - 2, spaceCanvas.width / 2 + 4, spaceCanvas.height / 2 + 4);
-		}
-		stars.forEach(star => star.draw());
-
-		// draw axis
-		if (system < 2) {
-			spaceContext.strokeStyle = '#222';
-			spaceContext.lineWidth = 3;
-			for (r = 0; r < 4; r++) {
-				spaceContext.moveTo(spaceCanvas.width/2, spaceCanvas.height/2);
-				spaceContext.lineTo(
-					spaceCanvas.width/2 + Math.cos(Math.PI * (axisRotation + r*90) / 180) * spaceCanvas.width/2,
-					spaceCanvas.height/2 + Math.sin(Math.PI * (axisRotation + r*90) / 180) * spaceCanvas.height/2*tween.skew
-				);
-			}
-			spaceContext.stroke();
-		}
-
+	if (state) {
+		// run time (1 day per second is the slowest - in surface mode time always runs that slow)
+		earthRad += state > 2 ? 0.018 : tween.speed;
 		const _year = (2021 + earthRad / 365.25);
 		const _month = 1 + (0|(year - (0|year)) * 12);
-		if (year != _year || month != _month) {
+		const _day = 1 + (0|(year - (0|year)) * 365.25 % 30);
+		if (year != _year || month != _month || (day != _day && state > 2)) {
 			year = _year;
 			month = _month;
-			if (count > 345) updateYearUI();
+			day = _day;
+			if (count > 345) updateYearUI(state > 2 ? 200 : 0);
 		}
 
-		if (count < 346) {
-			r = count < 336 ? 101 : (345 - count) * 10;
-			uiDiv.style = `margin-top:${r}px`;
-			updateYearUI(r);
-			updateTimeUI(r);
-		} else uiDiv.style = '';
+		// draw the solar / planetary system
+		if (state < 3) {
+			count += 1;
+			// OPT: clearRect the whole canvas, nomatter the rotation
+			if (tween.rotation) {
+				spaceContext.clearRect(0, 0, spaceCanvas.width, spaceCanvas.height);
+			} else {
+				spaceContext.clearRect(spaceCanvas.width / 4 - 2, spaceCanvas.height / 4 - 2, spaceCanvas.width / 2 + 4, spaceCanvas.height / 2 + 4);
+			}
+			stars.forEach(star => star.draw());
 
-		// don't render planets which are outside the visible area
-		if (system < 2) {
-			planets[4].velocity = state == 2 || tween.scale < 2 / tween.skew ? planets[4].baseVelocity : 0;
-			planets[5].velocity = state == 2 || tween.scale < 1 / tween.skew ? planets[5].baseVelocity : 0;
-			planets[6].velocity = state == 2 ? planets[6].baseVelocity : 0;
-			planets[7].velocity = state == 2 ? planets[7].baseVelocity : 0;
-		}
-
-		sun.update();
-		if (system > 1) {
-			globalPlanets.forEach(planet => {
-				if (planet != sun) {
-					planet.update(true);
+			// draw axis
+			if (system < 2) {
+				spaceContext.strokeStyle = '#222';
+				spaceContext.lineWidth = 3;
+				for (r = 0; r < 4; r++) {
+					spaceContext.moveTo(spaceCanvas.width/2, spaceCanvas.height/2);
+					spaceContext.lineTo(
+						spaceCanvas.width/2 + Math.cos(Math.PI * (axisRotation + r*90) / 180) * spaceCanvas.width/2,
+						spaceCanvas.height/2 + Math.sin(Math.PI * (axisRotation + r*90) / 180) * spaceCanvas.height/2*tween.skew
+					);
 				}
-			})
-		}
-		spaceCanvas.style.transform = `translateX(${tween.offset}px) translateY(-1380px) rotate(${tween.rotation}deg)`;
-		spaceCanvas.style.opacity = tween.alpha;
+				spaceContext.stroke();
+			}
 
-		requestAnimationFrame(animate);
+			// custom intro ui animation - slide in the speed control buttons
+			if (count < 346) {
+				r = count < 331 ? 151 : (345 - count) * 10;
+				uiDiv.style = `margin-top:${r}px`;
+				updateYearUI(r);
+				updateTimeUI(r);
+			} else uiDiv.style = '';
+
+			// don't render planets which are outside the visible area
+			if (system < 2) {
+				planets[4].velocity = state == 2 || tween.scale < 2 / tween.skew ? planets[4].baseVelocity : 0;
+				planets[5].velocity = state == 2 || tween.scale < 1 / tween.skew ? planets[5].baseVelocity : 0;
+				planets[6].velocity = state == 2 ? planets[6].baseVelocity : 0;
+				planets[7].velocity = state == 2 ? planets[7].baseVelocity : 0;
+			}
+
+			sun.update();
+			if (system > 1) {
+				globalPlanets.forEach(globalPlanet => {
+					if (globalPlanet != sun) {
+						globalPlanet.update(true);
+					}
+				})
+			}
+			spaceCanvas.style.transform = `translateX(${tween.offset}px) translateY(-1380px) rotate(${tween.rotation}deg)`;
+			spaceCanvas.style.opacity = tween.alpha;
+		} else if (running) {
+			// draw surface
+			draw();
+		}
 	}
+
+	requestAnimationFrame(animate);
 }

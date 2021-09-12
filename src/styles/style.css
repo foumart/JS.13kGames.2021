@@ -6,24 +6,24 @@
 
 body {
 	background-color: #000;
-	color: #999;
+	color: #ccc;
 }
 
 div, canvas {
 	position: absolute;
 	user-select: none;
-	box-sizing: border-box;
-	-webkit-tap-highlight-color: transparent;
+	/* box-sizing: border-box; */
+	/* -webkit-tap-highlight-color: transparent; */
 }
 
 canvas {
-	touch-action: none;
+	/* touch-action: none; */
 	pointer-events: none;
 }
 
 #gameDiv {
 	font-family: emoji, Arial;
-	font-size: 60px;
+	font-size: 64px;
 }
 
 #gameDiv div {
@@ -34,7 +34,7 @@ canvas {
 	margin: 0 10px;
 	float: left;
 	opacity: 0.75;
-	font-size: 99px;
+	font-size: 128px;
 	cursor: pointer;
 }
 
@@ -43,23 +43,49 @@ canvas {
 }
 
 #menuDiv {
+	position: fixed !important;
+	top: 0;
 	text-align: center;
-	margin-top: -60px;
 }
 
 #menuDiv nav {
-	margin: 9px;
+	position: absolute;
+	width: 910px;
+	padding: 20px 10px;
 	float: unset;
-	font-size: 45px;
+	font-size: 60px;
+}
+
+#menuDiv div {
+	font-size: 50px;
+	width: 1920px;
+	height: 940px;
+	background-color: rgba(0,0,0,0.4);
+}
+
+#menuDiv b {
+	font-family: Verdana;
+	font-size: 50px;
+	line-height: 70px;
 }
 
 #resDiv {
-	margin: 9px;
+	pointer-events: none;
+	position: fixed !important;
+	top: 120px;
+	margin: 15px;
 }
 
-#resDiv b, #menuDiv b {
-	font-family: Arial;
+#resDiv b {
+	font-family: Verdana;
 	font-size: 50px;
+	line-height: 85px;
+}
+
+#resDiv u, #menuDiv u {
+	font-size: 50px;
+	line-height: 120px;
+	text-underline-offset: 10px;
 }
 
 @font-face {

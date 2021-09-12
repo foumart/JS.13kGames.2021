@@ -32,8 +32,11 @@ class Planet {
 			}
 		}
 
-		this.status = 0;// 0: Unexplored, 1: Explored, 2: Yielded, 3: Colonized
-		this.progress = 0;
+		this.status = this.isEarth ? 4 : 0;//name == "Venus" ? 1 : name == "Moon" ? 2 : 0;// 0: Unexplored, 1: Explored, 2: Yielded, 3: Colonized, 4: Inhabited (Earth)
+		this.resources = this.isEarth ? [100,10,10,5,1] : [0,0,0,0,0];//name == "Moon" ? [0,5,5,2,1] : name == "Venus" ? [0,0,0,0,5] : [0,0,0,0,0];
+		//this.progress = 0;
+		this.population = this.isEarth ? 7900 : 0;
+
 	}
 
 	addInteractions() {
