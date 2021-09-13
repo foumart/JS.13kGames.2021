@@ -17,16 +17,16 @@ if ("serviceWorker" in navigator && location.protocol.substring(0, 5) === "https
 				if (_debug) console.log("ServiceWorker registered successfully");
 			}).catch(() => {
 				if (_debug) console.log("ServiceWorker registration failed");
-				init();
+				_init();
 			});
 		}
 	}).catch(() => {
 		if (_debug) console.log("ServiceWorker bypassed locally");
-		init();
+		_init();
 	});
 	navigator.serviceWorker.ready.then(() => {
 		if (_debug) console.log('ServiceWorker is now active');
-		init();
+		_init();
 	});
 } else {
 	if (_debug) {
@@ -37,5 +37,5 @@ if ("serviceWorker" in navigator && location.protocol.substring(0, 5) === "https
 		}
 	}
 
-	window.addEventListener("load", init);
+	window.addEventListener("load", _init);
 }

@@ -32,13 +32,13 @@ class Planet {
 			}
 		}
 
-		this.status = this.isEarth ? 4 : 0;//name == "Venus" ? 1 : name == "Moon" ? 2 : 0;// 0: Unexplored, 1: Explored, 2: Yielded, 3: Colonized, 4: Inhabited (Earth)
+		this.status = this.isEarth ? 4 : name == "Moon" ? 1 : 0;//name == "Venus" ? 1 : name == "Moon" ? 2 : 0;// 0: Unexplored, 1: Explored, 2: Yielded, 3: Colonized, 4: Inhabited (Earth)
 		//[100,20,10,5,0]
 		this.exploreCost = exploreCost;
 		this.mineCost = mineCost;
 		this.colonyCost = colonyCost;
 		this.char = char;
-		this.resources = this.isEarth ? [1000,1000,1000,100,100] : [0,0,0,0,0];//name == "Moon" ? [0,5,5,2,1] : name == "Venus" ? [0,0,0,0,5] : [0,0,0,0,0];
+		this.resources = this.isEarth ? [100,50,50,20,10] : [0,0,0,0,0];//name == "Moon" ? [0,5,5,2,1] : name == "Venus" ? [0,0,0,0,5] : [0,0,0,0,0];
 		this.population = this.isEarth ? 7900 : 0;
 	}
 

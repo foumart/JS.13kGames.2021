@@ -5,7 +5,7 @@ var debug;
 var name = "[SW] "+version+": ";
 
 // Update the following list with all the needed files, so the game will work offline.
-var files = [ "index.html", "game.html", "ico.png" ];
+var files = [ "index.html", "ico.png", "Twemoji.ttf"];
 
 if (debug) console.log(name+"%cService Worker initialized", "color:#3333cc");
 

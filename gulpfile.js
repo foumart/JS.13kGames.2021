@@ -105,7 +105,8 @@ function css(callback) {
 // compile the pwa initialization script and loader, as well as game scripts
 function app(callback) {
 	const scripts = [
-		'resources/loader.js'
+		'resources/loader.js',
+		'src/scripts/*'
 	];
 	if (pwa) {
 		scripts.unshift('resources/sw_init.js');
@@ -114,52 +115,19 @@ function app(callback) {
 	src(scripts, { allowEmpty: true })
 		.pipe(replace('let _debug;', `let _debug = ${debug ? 'true' : 'false'};`, replaceOptions))
 		.pipe(replace('service_worker', 'sw', replaceOptions))
-		.pipe(gulpif(!pwa, replace('// loader', 'window.addEventListener("load", init);', replaceOptions)))
-		.pipe(concat('tmp.js'))
+		.pipe(gulpif(!pwa, replace('// loader', 'window.addEventListener("load", _init);', replaceOptions)))
+		.pipe(gulpif(!debug,
+			closureCompiler({
+				compilation_level: 'ADVANCED_OPTIMIZATIONS',
+				warning_level: 'QUIET',
+				language_in: 'ECMASCRIPT6',
+				language_out: 'ECMASCRIPT6'
+			})
+		))
+		.pipe(gulpif(!debug, minify({ noSource: true })))
+		.pipe(concat('app.js'))
 		.pipe(dest(dir + '/tmp/'))
-		.on('end', () => {
-			src([dir + '/tmp/tmp.js'], { allowEmpty: true })
-				.pipe(gulpif(!debug,
-					closureCompiler({
-						compilation_level: 'ADVANCED_OPTIMIZATIONS',
-						warning_level: 'QUIET',
-						language_in: 'ECMASCRIPT6',
-						language_out: 'ECMASCRIPT6'
-					})
-				))
-				.pipe(gulpif(!debug, minify({ noSource: true })))
-				.pipe(concat('temp.js'))
-				.pipe(dest(dir + '/tmp/'))
-				.on('end', () => {
-					src(['src/scripts/*'], { allowEmpty: true })
-						.pipe(gulpif(!debug,
-							closureCompiler({
-								compilation_level: 'ADVANCED_OPTIMIZATIONS',
-								warning_level: 'QUIET',
-								language_in: 'ECMASCRIPT6',
-								language_out: 'ECMASCRIPT6'
-							})
-						))
-						.pipe(gulpif(!debug, minify({ noSource: true })))
-						.pipe(concat('app.js'))
-						.pipe(dest(dir + '/tmp/'))
-						.on('end', callback);
-				});
-		});
-}
-
-// prepare index.html
-function html(callback) {
-	src('src/index.html', { allowEmpty: true })
-		.pipe(replace('{MONETIZATION}', monetization, replaceOptions))
-		.pipe(replace('{TITLE}', title, replaceOptions))
-		.pipe(gulpif(social != false && mobile != false, htmlreplace({'mobile': mobile, 'social': social, 'js': 'rep_js'})))
-		.pipe(gulpif(social === false && mobile != false, htmlreplace({'mobile': mobile, 'social': '', 'js': 'rep_js'})))
-		.pipe(gulpif(social != false && mobile === false, htmlreplace({'mobile': '', 'social': social, 'js': 'rep_js'})))
-		.pipe(gulpif(social === false && mobile === false, htmlreplace({'mobile': '', 'social': '', 'js': 'rep_js'})))
-		.pipe(concat('temp.html'))
-		.pipe(dest(dir + '/tmp/'))
-		.on('end', callback)
+		.on('end', callback);
 }
 
 // prepare web manifest file
@@ -205,16 +173,18 @@ function pack(callback) {
 			css = css.replace(regex, variableNames[i]);
 		}
 	}
-	src(dir + '/tmp/temp.html', { allowEmpty: true })
+	src('src/index.html', { allowEmpty: true })
+		.pipe(replace('{MONETIZATION}', monetization, replaceOptions))
 		.pipe(replace('{TITLE}', title, replaceOptions))
+		.pipe(gulpif(social != false && mobile != false, htmlreplace({'mobile': mobile, 'social': social})))
+		.pipe(gulpif(social === false && mobile != false, htmlreplace({'mobile': mobile, 'social': ''})))
+		.pipe(gulpif(social != false && mobile === false, htmlreplace({'mobile': '', 'social': social})))
+		.pipe(gulpif(social === false && mobile === false, htmlreplace({'mobile': '', 'social': ''})))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
-		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
-		.pipe(replace('"', '', replaceOptions))
-		.pipe(replace('rep_js', '<script>' + fs.readFileSync(dir + '/tmp/temp.js', 'utf8') + '</script>', replaceOptions))
-		.pipe(concat('index.html'))
-		.pipe(dest(dir + '/'))
+		.pipe(concat('temp.html'))
+		.pipe(dest(dir + '/tmp/'))
 		.on('end', () => {
-			let stream = src(['src/game.html'], { allowEmpty: true });
+			let stream = src(dir + '/tmp/temp.html', { allowEmpty: true });
 			if (!debug) for (let i = 0; i < elementIds.length; i++) {
 				stream = stream.pipe(replace(elementIds[i], variableNames[i], replaceOptions));
 			}
@@ -224,7 +194,7 @@ function pack(callback) {
 				.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
 				.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
 				.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
-				.pipe(concat('game.html'))
+				.pipe(concat('index.html'))
 				.pipe(dest(dir + '/'))
 				.on('end', callback);
 		});
@@ -303,9 +273,9 @@ function getDateString(shorter) {
 }
 
 // exports
-exports.default = series(ico, sw, app, css, html, mf, pack, clean, archive, check, emoji, watch);
-exports.pack = series(ico, sw, app, css, html, mf, pack, clean);
-exports.sync = series(app, css, html, pack, clean, reload);
+exports.default = series(ico, sw, app, css, mf, pack, clean, archive, check, emoji, watch);
+exports.pack = series(ico, sw, app, css, mf, pack, clean);
+exports.sync = series(app, css, pack, clean, reload);
 exports.zip = series(archive, check);
 
 /*

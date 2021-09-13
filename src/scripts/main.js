@@ -49,13 +49,13 @@ const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 function init() {
 	// load Menu and tutorial
-	//load();
+	load();
 
 	// load Terrestrial system
 	//load(1, 1, 1);
 
 	// load Earth
-	load(2, -1, 3, 350, 0.018);
+	//load(2, -1, 3, 350, 0.018);
 
 	// load mars in year 2022
 	//load(1, 3, 3, 300, 0.018, 365.25);
@@ -147,7 +147,7 @@ function updateUI(text, x = 16, y = 64, size = 70, clear, bold) {
 				// terrestrial planetary / solar system
 				if (!system) description = 'Gas giants currently unreachable.';
 			} else {
-				description = `Inhabited. Population: ${_planet.population / 1000}m`;
+				description = `Population: ${_planet.population / 1000}m`;
 			}
 			overContext.fillText(description, x, y+64);
 
@@ -214,7 +214,7 @@ function setUI() {////spaceDiv.style = gameDiv.style = 'width:1920px;height:1080
 	uiDiv.style = state ? 'filter:hue-rotate(180deg) saturate(0.5);float:right'
 						: 'opacity:0.4;font-size:125px;transform:scale(15.7,12) translateX(898px) translateY(-48px)';
 	uiDiv.innerHTML = state ?
-		state > 2 ? '<nav style=font-size:160px;float:unset>&#x1FA90;</nav><nav id=base style=margin-left:42px;width:99px;height:99px;line-height:120px>&#x1F3E2;</nav>'
+		state > 2 ? '<nav style=font-size:160px;float:unset>&#x1FA90;</nav>' + (system == 2 ? '<nav id=base style=margin-left:42px;width:99px;height:99px;line-height:120px>&#x1F3E2;</nav>' : '')
 					: '<nav>&#x23EA;</nav><nav>&#x23F8;</nav><nav>&#x23E9;</nav>'
 							: '&#x1F30C;';
 	//if (state) updateResourcesUI();

@@ -41,7 +41,7 @@ function updateFullscreen() {
 
 
 // loader
-function init() {
+function _init() {
 	checkMonetization();
 	//toggleFullscreen();
 }

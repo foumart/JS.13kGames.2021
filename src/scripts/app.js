@@ -448,7 +448,7 @@ function toggleSkew(selected) {
 	if (skewed) {
 		normalizePlanetsRotation();
 	}
-	idle = false;console.log(tween.skew)
+	idle = false;
 	TweenFX.to(tween, tween.skew == (skewed ? baseSkew : 1) ? 0 : 30, {skew: skewed ? baseSkew : 1}, 0, () => {
 		if (selected > -1) {
 			tweenToPlanet(selected);

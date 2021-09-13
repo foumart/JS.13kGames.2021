@@ -1,7 +1,7 @@
 {
-	"name": "js13k_2021",
+	"name": "in_ascent",
 	"version": "0.0.1",
-	"description": "js13k 2021 game by FoumartGames",
+	"description": "in ASCENT - JS13k game by Noncho Savov. FoumartGames 2021",
 	"keywords": [
 		"js13kgames",
 		"js13k",
@@ -12,7 +12,7 @@
 	"scripts": {
 		"build": "npx del-cli public --force && gulp --dir public --pwa --mobile",
 		"debug": "npx del-cli public --force && gulp --dir public --pwa --mobile --debug",
-		"start": "npx del-cli public/game.html gulp sync --dir public --pwa --mobile",
+		"start": "npx del-cli public/index.html gulp sync --dir public --pwa --mobile",
 		"pack": "npx del-cli public --force && gulp pack --dir public --pwa --mobile",
 		"test": "gulp zip --dir public --test"
 	},

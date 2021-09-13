@@ -46,13 +46,13 @@ const buildings = [
 	[11, 375,   6,  -10, 1, 160, 'Resource Depot',    '0f0', 0, 0,
 		5,5,2,0,0
 	],
-	[12, 206,  5.5, -2,  0, 250, 'Observatory',       'f60', 0, [[23,214,6], [22,215.5,4,-28]],
+	[12, 206,  5.5, -2,  _monetization ? 1 : 0, 250, 'Observatory',       'f60', 0, [[23,214,6], [22,215.5,4,-28]],
 		20,10,5,1,0
 	],
 	[13, 553,   6,   9,  0, 140, 'Comsat Station',    '0f0', 0, 0,
 		10,5,2,5,0
 	],
-	[14, 414.7, 6,  -4,  0, 170, 'Aramid Factory',    'fff', 0, [[20,417,3,-31]],
+	[14, 414.7, 6,  -4,  _monetization ? 1 : 0, 170, 'Aramid Factory',    'fff', 0, [[20,417,3,-31]],
 		15,5,25,10,3
 	],
 	[15, 716,   5,   1,  0, 280, 'Refinery',          'fff', 0, [[24,723,7.3,-6], [9,715.5,4,-28], [26,727,2.5,5], [26,730,2.5,5], [26,733,2.5,5]],
@@ -168,7 +168,7 @@ function runSurface() {
 	isMoon = system == 2 && !selectedPlanet;
 
 	stageWidth = Math.ceil(isEarth ? 10 : isMoon ? 5 : planet.radius / 2) * 1920;
-	console.log('surface width:', stageWidth/1920, stageWidth);
+	//console.log('surface width:', stageWidth/1920, stageWidth);
 
 	planetWidth = stageWidth / hardWidth;
 	playerX = -stageWidth / 2 + stageWidth / planetWidth / 2;
@@ -536,7 +536,7 @@ function interactSurface(id = activeStructure) {
 
 			html += "</div>";
 		} else if (structure[0] == 11) {//const resources = ['6E2', 'AA8', '9CA', '4A0', '48E'];
-			console.log(year % 5, month % 5)//monthRandom
+			//console.log(year % 5, month % 5)//monthRandom
 			//let _from = ;
 			if (resources[month % 5]) {
 				// TODO
@@ -601,5 +601,5 @@ function _build(id) {
 }
 
 function _deal() {
-	console.log('deal');
+	//console.log('deal');
 }
