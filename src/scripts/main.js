@@ -17,7 +17,7 @@ const spaceContext = spaceCanvas.getContext("2d");
 const gameContext = gameCanvas.getContext("2d");
 const overContext = overCanvas.getContext("2d");
 
-let soundFX;
+//let soundFX;
 
 // global sizes
 const hardWidth = 1920;
@@ -49,13 +49,13 @@ const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 function init() {
 	// load Menu and tutorial
-	load();
+	//load();
 
 	// load Terrestrial system
 	//load(1, 1, 1);
 
 	// load Earth
-	//load(2, -1, 3, 330, 0.018);
+	load(2, -1, 3, 350, 0.018);
 
 	// load mars in year 2022
 	//load(1, 3, 3, 300, 0.018, 365.25);
@@ -124,12 +124,12 @@ function clearUI(x, y, width, height = hardHeight) {
 
 function updateUI(text, x = 16, y = 64, size = 70, clear, bold) {
 	if (!text) clearUI(0, 0, hardWidth, hardHeight);
-	if (clear) clearUI(x-5, y-size, hardWidth-x, size * 1.6);
+	if (clear) clearUI(x-5, y-size, hardWidth-x, size * 1.55);
 	if (text || count > 340 || !state) {
 		overContext.shadowColor = '#000';
 		overContext.shadowBlur = 5;//state > 2 ? 5 : 0;
 		overContext.font = `${state > 2 || !text || !state || bold ? 'bold ' : ''}${size}px Arial`;
-		overContext.fillStyle = '#ccc';
+		overContext.fillStyle = '#fff';
 		const _planet = zoomed ? planet : sun;
 		if (!text) overContext.fillRect(x, y + 12, overContext.measureText(text || _planet.name).width, 5);
 		overContext.fillText(text || _planet.name, x, y);
@@ -166,9 +166,9 @@ function updateTimeUI(posY = 0) {
 }
 
 function updateYearUI(posY = 0) {
-	updateUI(`Year: ${0|year}`, 14, 860 + posY, 48, 1, 1);
-	updateUI((month < 10 ? '/ 0' + month : '/ ' + month), 260, 860 + posY, 40, 1);
-	/*if (state > 2)*/ updateUI((day < 10 ? '/ 0' + day : '/ ' + day), 335, 862 + posY, 32, 1);
+	updateUI(`Year: ${0|year}`, 14, 860 + posY, 52, 1, 1);
+	updateUI((month < 10 ? '/ 0' + month : '/ ' + month), 280, 860 + posY, 44, 1);
+	updateUI((day < 10 ? '/ 0' + day : '/ ' + day), 364, 860 + posY, 36, 1);
 }
 
 function getResources(moon) {
@@ -195,8 +195,14 @@ function updateResourcesUI() {//console.log(selectedPlanet, system, state)
 		browseForResources(basePlanet);
 	}
 	//display resources:
-	resDiv.innerHTML = (planet.status || (!selectedPlanet && !zoomed)) ?
-		`<b><u>Resources:</u></b><br>&#x1F6E2; <b>${oil}</b><br>&#x1FAA8; <b>${ore}</b><br>&#x1F9CA; <b>${silica}</b><br>&#x1F4A0; <b>${metal}</b><br>&#x1F48E; <b>${carbon}</b>`:'';
+	if (planet.status || (!selectedPlanet && !zoomed)) {
+		resDiv.innerHTML = '<b><u>Resources:</u>';
+		for (i = 0; i < 5; i++) {
+			resDiv.innerHTML += `<br>&#x1F${resources[i]}; <b>${[oil,ore,silica,metal,carbon][i]}</b>`;
+		}
+	} else {
+		resDiv.innerHTML = '';
+	}
 	//Res:<div>&#x1F6E2;</div><div>&#x1F4A7;</div>
 }
 
@@ -207,7 +213,10 @@ function setUI() {////spaceDiv.style = gameDiv.style = 'width:1920px;height:1080
 	frameDiv.style = state && state < 3 ? 'display:none' : `width:${!state ? hardWidth : frameWidth}px;height:${!state ? hardHeight : surfaceHeight}px;`;
 	uiDiv.style = state ? 'filter:hue-rotate(180deg) saturate(0.5);float:right'
 						: 'opacity:0.4;font-size:125px;transform:scale(15.7,12) translateX(898px) translateY(-48px)';
-	uiDiv.innerHTML = state ? state > 2 ? '<nav>&#x1FA90;</nav>' : '<nav>&#x23EA;</nav><nav>&#x23F8;</nav><nav>&#x23E9;</nav>' : '&#x1F30C;';
+	uiDiv.innerHTML = state ?
+		state > 2 ? '<nav style=font-size:160px;float:unset>&#x1FA90;</nav><nav id=base style=margin-left:42px;width:99px;height:99px;line-height:120px>&#x1F3E2;</nav>'
+					: '<nav>&#x23EA;</nav><nav>&#x23F8;</nav><nav>&#x23E9;</nav>'
+							: '&#x1F30C;';
 	//if (state) updateResourcesUI();
 	//<nav style=font-size:80px;margin-top:150px;margin-right:-130px>&#x1F315;</nav>
 }
@@ -226,9 +235,10 @@ function switchState(_state = 0, _back = false) {
 }
 
 function showMеnu() {
-	updateUI("iN ASCENT", 380, 500, 220);
-	updateUI("Start Game", 790, 680, 70);
-	updateUI("Developed by Noncho Savov, FoumartGames 2021. Submission in JS13K games.", 450, 999, 28);
+	updateUI("in ASCENT", 380, 500, 220);
+	updateUI("Start Game", 790, 760, 70);
+	//updateUI("Continue", 830, 820, 70);
+	updateUI("Developed by Noncho Savov, FoumartGames © 2021. Submission for JS13K games, theme SPACE.", 220, 999, 32);
 }
 
 // mouse / touch interaction
@@ -252,12 +262,18 @@ function addListeners() {
 
 	// UI button events
 	uiDiv.onmousedown = e => {
-		soundFX = new SoundFX();
-		soundFX.init();
+		//soundFX = new SoundFX();
+		//soundFX.init();
 
 		if (state > 2) {
-			// get back from surface mode
-			switchState(1, true);
+			removeInteractions();
+			if (e.target.id == 'base') {
+				// center surface
+				interactSurface(structures.indexOf(buildings[0]));
+			} else {
+				// get back from surface mode
+				switchState(1, true);
+			}
 		} else if (!state) {
 			switchState(1);// TODO: fetch game progress
 		} else {
@@ -276,19 +292,26 @@ function addListeners() {
 			}
 		}
 	}
+
+	// html inlined event dispatches from the structure menues
+	document.addEventListener("intr", _build);
+	document.addEventListener("menu", _menu);
+	document.addEventListener("deal", _deal);
 }
 
 function removeInteractions() {
 	Array.from(spaceDiv.children).forEach(div => div.style.pointerEvents = 'none');
 	structures.forEach(structure => {
-		if (structure[4] == 1) structure[4] = 0;
+		if (structure[4] == 3) structure[4] = 1;
 		activeStructure = 0;
 		menuDiv.innerHTML = '';
+		menuDiv.style = '';
 	})
 }
 
 function touchStartHandler(event) {
-	if (frame.speed) {
+	if (tutorial) return;
+	if (frame.speed && !activeStructure) {
 		frame.killed = true;
 		frame.speed = 0;
 	}
@@ -323,7 +346,7 @@ function assignClient(event) {
 }
 
 function touchMoveHandler(event) {
-	if (state > 2) removeInteractions();
+	if (state > 2 && interactionDistance > -1) removeInteractions();
 	if (mobile) {
 		assignClient(event);
 	}
@@ -396,7 +419,7 @@ function touchEndHandler(event) {
 							const objX = structures[i][1] / 5;
 							if (tapX > objX && tapX < objX + 4 && (event.clientY - offsetY) / scale > 700) {
 								// interact with an object on the surface
-								if (activeStructure) {
+								if (activeStructure == i) {
 									removeInteractions();
 								} else {
 									interactSurface(i);

@@ -60,10 +60,13 @@ function addStars() {
 
 function prepareGlobals() {
 	globalPlanets = [                                                              // Radius, Orbital period,      Gravity,       Density,      Semi-major axis
-	    new Planet(10, 71.6, 113, 988, 'Mercury', 1, 0.9),                         // 2439.7, 88d,       0.241y,   3.7 dm/s²,     5.427 g/cm³,  57.909,050 km
-	    new Planet(18, 28.1, 160, 'fb7', 'Venus', 1, 2.3),                         // 6051.8, 224.7d,    0.615y,   8.87 dm/s²,    5.243 g/cm³,  108.208,000 km
-	    new Planet(20, 17.2, 229, '03f', 'Earth-Moon system', getMoons(2), 4.5),   // 6371,   365.25d,   1y,       9.80665 dm/s², 5.514 g/cm³,  149.598,023 km
-	    new Planet(16, 9.2,  303, 'f20', 'Mars', getMoons(3), 5.4),                // 3389.5, 686.93d,   1.881y,   3.72076 dm/s², 3.9335 g/cm³, 227.939,200 km (1.523679 AU)
+	    new Planet(10, 71.6, 113, 988, 'Mercury', 1, 0.9,                          // 2439.7, 88d,       0.241y,   3.7 dm/s²,     5.427 g/cm³,  57.909,050 km
+	        [100,0,10,40,5], [120,0,20,80,10], [150,0,30,100,25]),
+	    new Planet(18, 28.1, 160, 'fb7', 'Venus', 1, 2.3,                          // 6051.8, 224.7d,    0.615y,   8.87 dm/s²,    5.243 g/cm³,  108.208,000 km
+	        [60,0,10,30,5], [80,0,25,60,10], [100,0,60,30,15], 40),
+	    new Planet(20, 17.2, 229, '03f', 'Earth-Moon system', getMoons(2), 4.5),    // 6371,   365.25d,   1y,       9.80665 dm/s², 5.514 g/cm³,  149.598,023 km
+	    new Planet(16, 9.2,  303, 'f20', 'Mars', getMoons(3), 5.4,                 // 3389.5, 686.93d,   1.881y,   3.72076 dm/s², 3.9335 g/cm³, 227.939,200 km (1.523679 AU)
+	        [80,0,10,25,5], [100,0,15,50,15], [120,0,50,30,10], 38),
 	    new Planet(42, 1.46, 453, 'f94', 'Galilean system', getMoons(4), 0.6),     // 69911,  4332.6d,   11.862y,  24.79 dm/s²,   1,326 g/cm³,  778.57 Gm (5.2044 AU)
 	    new Planet(38, .59,  680, 'fca', 'Saturn Ringlet system', getMoons(5), 1), // 58232,  10759.22d, 29.457y,  10.44 dm/s²,   0.687 g/cm³,  1,433.53 million km (9.5826 AU)
 	    new Planet(32, .206, 847, '8ad', 'Uranian system', getMoons(6), 5.5),      // 25362,  30688.5d,  84.0205y, 8.69 dm/s²,    1.27 g/cm³,   2875.04 Gm (19.2185 AU)
@@ -75,7 +78,8 @@ function prepareGlobals() {
 function getMoons(sys, size = 1, type = 1) {
 	return [,,//       Radius,     Velocity,  Orbit, Color, Name, Type       // Radius, Orbit,  Gravity,   Density,     Semi-major axis
 		[// Earth
-		    new Planet(20*size-15, 208, 115*size-85, 999, 'Moon', 3-size)    // 1737.4, 27.32d, 1.62 m/s², 3.344 g/cm³, 384,399 km
+		    new Planet(20*size-15, 208, 115*size-85, 999, 'Moon', 3-size, 0, // 1737.4, 27.32d, 1.62 m/s², 3.344 g/cm³, 384,399 km
+				[50,0,10,20,2], [60,0,10,40,5], [80,0,40,20,10], 37),
 		],
 		[// Mars
 		    new Planet(.9, -200, 22), new Planet(.7, 160, 29)
@@ -199,9 +203,7 @@ function prepareSystem(sys = 0) {
 			TweenFX.to(tween, 30, {scale: getInitialZoom()}, 0, () => {
 				// tutorial last step in the solar system view
 				if (tutorial) {
-					tutorial = 2;
-					selectedPlanet = -1;
-					enterSurface();
+					tutorial = count;
 				}
 				idle = true;
 			});
@@ -230,15 +232,10 @@ function runSolarSystem(_back) {
 			TweenFX.to(tween, 195, {speed: 0.018}, 0, () => {
 				uiDiv.style = '';
 				tutorial = 1;
-				pause();
 				toggleSkew(2);
 			});
 		});
 	}
-}
-
-function tutClick() {
-	tweenToPlanet(2);
 }
 
 function pause() {
@@ -249,17 +246,17 @@ function pause() {
 }
 
 function unpause() {
+	tween.speed = paused;
+	paused = 0;
+	uiDiv.children[1].innerHTML = '&#x23F8;';
+	updateTimeUI();
+
 	if (tutorial) {
 		// prepare for the tutorial on the planet surface mode
 		menuDiv.style = '';
 		menuDiv.innerHTML = '';
 		prepareSystem(selectedPlanet);
 	}
-
-	tween.speed = paused;
-	paused = 0;
-	uiDiv.children[1].innerHTML = '&#x23F8;';
-	updateTimeUI();
 }
 
 function increaseSpeed() {
@@ -292,7 +289,7 @@ function onClick(event) {
 		if (event.target.link == sky) {
 			if (zoomed) {
 				toggleZoom();
-			} else if (system > 1 && observatory) {
+			} else if (system > 1 && buildings[2][4]) {
 				// get back from planet system
 				idle = false;
 				TweenFX.to(tween, 15, {scale: getTransitionZoom()}, 0, () => {
@@ -365,13 +362,14 @@ function onClick(event) {
 }
 
 function onWheel(event) {
+	//if (tutorial) return;
 	if (!zoomed) {
 		sunscale += event.deltaY * - sunscale * 0.002;
 		zoom();
 		if (sunscale == maxScale) {
 			tweenToPlanet(0);
 		}
-	} else if (event.deltaY > 0) {console.log(state, system, sun.moons.length)
+	} else if (event.deltaY > 0) {
 		if (selectedPlanet < (state == 1 && system < 2 ? 3 : sun.moons.length - 2)) {
 			tweenToPlanet(selectedPlanet + 1);
 		} else {
@@ -407,8 +405,9 @@ function enterSurface() {
 		idle = true;
 		switchState(state + 2);
 		if (tutorial) {
-			menuDiv.style = `width:1920px;height:930px;pointer-events:none;top:150px`;
-			menuDiv.innerHTML = `<div style=height:550px><u>Planetary surface mode:</u><br>Build facilities through the Headquarters.<br><br>Collect resources to launch space exploration programs.<br><br>When a terrestrial body is explored you can run missions<br>for minerals mining, search for life, or establish a colony.<br>Enjoy!</div><div style=width:720px;height:380px;float:left></div><div style=width:720px;height:380px;float:right></div>`;
+			menuDiv.style = `width:1920px;height:1080px;pointer-events:none;font-family:Verdana`;
+			menuDiv.innerHTML = `<div style=font-size:55px;height:700px><br><u style=font-size:65px>Planet surface view:</u><br>Use the main Headquarters to order<br>various facilities and structures to be built.<br><br>Collect resources for space exploration programs.<br><br>When a terrestrial body is fully explored you can<br> launch missions for collonization and mining of<br>minerals, or concentrate on the search for<br>extraterrestrial life. Enjoy!</div>`;//<div style=width:720px;height:380px;float:left></div><div style=width:720px;height:380px;float:right></div>
+			tutorial = 0;
 		}
 	});
 }
@@ -422,12 +421,7 @@ function tweenToPlanet(selected) {
 		offset: baseOffset + planet.orbitRadius * scales[selectedPlanet],
 		rotation: (360 + planet.velocity * 1800 * tween.speed) - Math.atan2(sun.y - planet.y, sun.x - planet.x) * 180 / Math.PI
 	}, 3, () => {
-		if (tutorial) {
-			menuDiv.style = `width:1920px;height:1080px;pointer-events:none;`;
-			menuDiv.innerHTML = `<div><br><br><u>Solar System mode:</u><br><br>On the left you can see information for the<br>currently selected planet or planetary system.<br><br>Including a summary of the resources collected<br>on the planet and in each of the inner moons<br>on which you have established presence.<br><br>By default time runs at one day per second.<br>Use the time controls only when you really need<br>to speed up the timeflow. Tap &#x25B6; to continue.</div><div style=width:140px;height:140px;float:left></div><div style=width:1620px;height:140px;float:right></div>`;
-		} else {
-			idle = true;
-		}
+		idle = !tutorial;
 		zoomed = true;
 		updateUI();
 	});
@@ -455,7 +449,7 @@ function toggleSkew(selected) {
 		normalizePlanetsRotation();
 	}
 	idle = false;console.log(tween.skew)
-	TweenFX.to(tween, tween.skew == skewed ? baseSkew : 1 ? 0 : 30, {skew: skewed ? baseSkew : 1}, 0, () => {
+	TweenFX.to(tween, tween.skew == (skewed ? baseSkew : 1) ? 0 : 30, {skew: skewed ? baseSkew : 1}, 0, () => {
 		if (selected > -1) {
 			tweenToPlanet(selected);
 		} else {
@@ -489,12 +483,44 @@ function animate() {
 		earthRad += state > 2 ? 0.018 : tween.speed;
 		const _year = (2021 + earthRad / 365.25);
 		const _month = 1 + (0|(year - (0|year)) * 12);
-		const _day = 1 + (0|(year - (0|year)) * 365.25 % 30);
+		const _day = 1 + (0|(year - (0|year)) * 360 % 30);
 		if (year != _year || month != _month || (day != _day && state > 2)) {
+			if (month != _month) {
+				// update randomness for depot
+				monthRandom = 0.5 + Math.random();
+
+				// add resources for each available mine
+				if (buildings[4][4]) {
+					globalPlanets[2].resources[2] ++;
+					if (_month % 4 == 0) planet.resources[4] ++;
+				}
+				if (buildings[5][4]) {
+					globalPlanets[2].resources[0] += 2;
+					if (_month % 2) planet.resources[2] ++;
+				}
+				if (buildings[6][4]) {
+					globalPlanets[2].resources[1] ++;
+					if (_month % 3 == 0) planet.resources[3] ++;
+				}
+				// increase Earth's population
+				globalPlanets[2].population += 5;
+
+				updateResourcesUI();
+			}
 			year = _year;
 			month = _month;
 			day = _day;
 			if (count > 345) updateYearUI(state > 2 ? 200 : 0);
+		}
+		if (tutorial) {
+			if (count == 580) {
+				pause();
+				menuDiv.style = `width:1920px;height:1080px;pointer-events:none;font-family:Verdana`;
+				menuDiv.innerHTML = `<div style=font-size:55px;background-color:rgba(0,0,0,0.7)><br><br><br><u style=font-size:65px>Solar System view:</u><br><br>Information for the currently selected<br>planetary system is displayed on the left.<br><br>There is a summary of the resources collected<br>on the planet, including the inner moons<br>on which you have established settlements.<br><br>By default time runs at one day / second.<br>Use the time controls only when you really<br>need to speed up the timeflow.<br><br>Tap ▶ to continue.</div><div style=width:140px;height:140px;float:left></div><div style=width:1620px;height:140px;float:right></div>`;
+			} else if (count == tutorial + 30) {
+				selectedPlanet = -1;
+				enterSurface();
+			}
 		}
 
 		// draw the solar / planetary system
@@ -548,7 +574,7 @@ function animate() {
 			}
 			spaceCanvas.style.transform = `translateX(${tween.offset}px) translateY(-1380px) rotate(${tween.rotation}deg)`;
 			spaceCanvas.style.opacity = tween.alpha;
-		} else if (running) {
+		} else {
 			// draw surface
 			draw();
 		}

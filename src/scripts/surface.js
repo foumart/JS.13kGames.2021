@@ -1,10 +1,10 @@
 // Planet / Moon surface view script
 // ---------------------------------
 
-let running;
-
 // height of the minimap
 const surfaceHeight = 150;
+const structuresSize = 30;
+
 // width of the minimap frame
 let frameWidth;
 let frameOffsetX;
@@ -24,28 +24,63 @@ let isMoon;
 
 // surface altitude data
 let bgrMountines;
+let offset;
 
-const offset = 0 | system / 2;
-const structuresSize = 30;
 let structures;
 let activeStructure;
 
-// Progress related:
+// progress related:
 let oil = 0;
 let ore = 0;
 let silica = 0;
 let metal = 0;
 let carbon = 0;
 
-let observatory = false;
-let satelite = false;
+// depot random resource selection
+let monthRandom = 1;
 
+// buildings data
+// char id, x, scale, y, status (0: non existent, 1: non selected, 2: highlighted, 3: selected), circ offset, name, menu id, menu total, cost
+const buildings = [
+	[10, 473.2, 9,  -8,  1, 220, 'Headquarters',      '0f0', 0, 0],
+	[11, 375,   6,  -10, 1, 160, 'Resource Depot',    '0f0', 0, 0,
+		5,5,2,0,0
+	],
+	[12, 206,  5.5, -2,  0, 250, 'Observatory',       'f60', 0, [[23,214,6], [22,215.5,4,-28]],
+		20,10,5,1,0
+	],
+	[13, 553,   6,   9,  0, 140, 'Comsat Station',    '0f0', 0, 0,
+		10,5,2,5,0
+	],
+	[14, 414.7, 6,  -4,  0, 170, 'Aramid Factory',    'fff', 0, [[20,417,3,-31]],
+		15,5,25,10,3
+	],
+	[15, 716,   5,   1,  0, 280, 'Refinery',          'fff', 0, [[24,723,7.3,-6], [9,715.5,4,-28], [26,727,2.5,5], [26,730,2.5,5], [26,733,2.5,5]],
+		20,10,5,1,0
+	],
+	[16, 777,   6,   0,  0, 230, 'Ore Mine',          'fff', 0, [[21,786], [21,789], [25,777,4,-28], [25,786,2,-8], [25,789,2,-8]],
+		25,20,2,5,0
+	],
+	[17, 135,   8,  -2,  0, 200, 'Research Facility', '39f', 0, [[22,137,5,-4]],
+		10,5,25,5,5
+	],
+	[18, 90.6,  6,  -2,  0, 250, 'Planetarium',       '39f', 0, [[23,98,6], [22,99.5,4,-28]],
+		25,8,20,6,4
+	],
+	[19, 835,   8,  -2,  0, 200, 'Launch Site',       'fc0', 0, 0,
+		50,25,20,10,0
+	]
+];
 
-let gameObjects = [
+// resource characters data (&#x1F{xxx};)
+const resources = ['6E2', 'AA8', '9CA', '4A0', '48E'];
+
+// dynamic game objects (not saved in progress)
+/*let gameObjects = [
 	[320, 220, 6, 128752],
 	[5320, 230, 9, 129666],
 	[5331, 255, 4, 127792]
-];
+];*/
 
 /*
 let shipY = 400;
@@ -65,68 +100,70 @@ function addBgrStars() {
 }
 
 function getStructureOffset(structure) {
-	return structure[1] * 20 + [136, 205, 90, 135, 110, 150, 85, 85, 85][structure[0]-10];
+	return structure[1] * 20 + [136, 90, 185, 65, 90, 205, 150, 120, 185, 125][structure[0] - 10];
 }
 
 // office:127971, hospital:127973, ice block:129482, satellite:128225/128752, rocket:128640, ufo:128760, helicopter:128641, rock: 129704
 // diamond:128142, measure:128476, milky way:127756, telescope:128301, microscope:128300, parachute: 129666, nut: 127792, crane: 127959
 // vulcano: 127755, 9968, 127956
 
+// character codes for surface emoji elements
 const structureMap = [
-//  0       1       2     3       4       5       6       7       8       9       
-//  hut     house   jar   leafs   cactus  pine    tree    palm,   leafs   oil     
+//  0       1       2     3       4       5       6       7       8       9
+//  hut     house   jar   leafs   cactus  pine    tree    palm,   leafs   oil
     128726, 127969, 9905, 127806, 127797, 127794, 127795, 127796, 127807, 128738,
 
-//  10      11      12      13      14      15      16 17 18
-//  headqua refiner depot   observa satelit refiner
-    127970, 127978, 127980, 128301, 128225, 127978, 0, 0, 0, 
+//  10      11      12      13      14      15      16      17      18      19
+//  headqua depot   observa satelit hospit  refiner oremine microsc observa launch
+    127970, 127980, 128301, 128225, 127973, 127978, 127978, 128300, 128301, 127959,
 
-//  19 20 21    22      23      24      25      26    27
-//  0, 0, chain scala   observ2 factory rock    fuel  brokol
-    0, 0, 9939, 127898, 127971, 127981, 129704, 9981, 129382,
+//  20      21    22      23      24      25      26    27
+//  diamond chain train   observ2 factory rock    fuel  brokol
+    128142, 9939, 128646, 127971, 127981, 129704, 9981, 129382,
 
-//  28      29      30      31      32      33    34      35  
-//  brokol  fuji    paprat  amoeb   vulcano mount mount2  fuji
-    129382, 128507, 129716, 129440, 127755, 9968, 127956, 128507
+//  28      29      30      31      32      33    34      35
+//  brokol  ananas  paprat  amoeb   vulcano mount mount2  fuji
+    127821, 127821, 129716, 129440, 127755, 9968, 127956, 128507,
+
+//  36      37      38      39      40      41      42      43      44      45    46
+//  full m  half m  red c   orange  yellow  brown   violet  green   blue    white black
+    127765, 127764, 128308, 128992, 128993, 128996, 128995, 128994, 128309, 9898, 9899
 ];
 
+// data for shapes to be drawn on the minimap 
 const structureMiniMap = [
 	[0,7, 4,7, 4,9, 9,9, 9,7, 13,7, 13,0],
-	[0,5, 3,7, 6,5, 9,7, 12,5, 16,8, 19,8, 19,0],
 	[0,8, 7,8, 7,6, 12,6, 12,0],
 	[2,3, 6,2, 8,4, 4,7, 6,9, 9,4, 12,3, 14,0],
 	[0,7, 5,4, 9,5, 8,6, 7,3, 11,0],
+	[0,5, 4,6, 4,8, 9,8, 9,6, 13,5, 13,0],
 	[0,5, 3,7, 6,5, 9,7, 12,5, 16,8, 19,8, 19,0],
+	[0,5, 3,7, 6,5, 9,7, 12,5, 16,8, 19,8, 19,0],
+	[0,7, 5,4, 9,5, 8,6, 7,3, 11,0],
 	[2,3, 6,2, 11,9, 16,2, 20,3, 22,0],
-	[2,3, 6,2, 11,9, 16,2, 20,3, 22,0]
+	[2,3, 6,2, 8,4, 4,7, 6,9, 9,4, 12,3, 14,0]
 ]
 
 function runSurface() {
-	//clearUI();
-	//updateYearUI(175);
-	running = true;
 	bgrX = 0;
+	offset = 0 | system / 2;
 	structures = [];//onclick="console.log(this.innerHTML.codePointAt(0))"
 	isEarth = selectedPlanet == -1;
+	if (tutorial) buildings[0][4] = tutorial;
 	if (isEarth) {
 		selectPlanet(2);
 		structures.push(
-			[13,206.6,5.5,-2,0,185,'Observatory'], [23,213,4], //observatory
 			[5,358,3,-3], [1,353,4.4,3], [5,365,4,-2], [5,360,5,3],
-			[12,375,6,-10,0,160,'Resource Depot'],
-			[27,395,12,79], [35,417,4,-12], [35,422,9], [35,433.5,6], [6,442,3], [6,447,4,3], [31,456,12,86], [30,496,14,60], 
-			[10,473.2,9,-8,2,210,'Headquarters'],
+			[27,394,12,94], [29,388,12,68], [35,417,4,-12], [35,422,9], [35,433.5,6], [6,442,3], [6,447,4,3],
+			[31,455,12,86], [29,468,9,56], [30,496,14,60], 
 			[8,515,3], [30,543,8,36], [6,536,3,3], [6,540,4], [7,554,4,5],
-			[14,553,7,9,0,160,'Radar'], // radar
-			[7,678,5,12],
-			[3,698,3,-9], [0,692,4.4,-4], [2,701,2], [4,759,3], [4,763.5],
-			[4,826], [0,828,4], [4,834,3,2], [3,854,3,6],
-			[11,716,5,1,0,280,'Refinery'], [24,723,7.3,-6], [9,715.5,4,-28], [26,727,2.5,5], [26,730,2.5,5], [26,733,2.5,5],
-			[33,764,6], [33,781,4,-22], [33,770,10], [33,791,5], [33,782,8], // [22,772.7,5.6,-39.5],
+			[7,678,5,12], [3,698,3,-9], [0,692,4.4,-4], [2,701,2], [4,759,3], [4,763.5],
+			[4,816], [0,818,4], [4,824,3,2], [3,854,3,6],
+			[33,764,6], [33,781,4,-22], [33,770,10], [33,791,5], [33,782,8]
+			//[22,772.7,5.6,-39.5],
 			//[22,774.9,3,1],
-			[15,777,6,0,0,230,'Ore Mine'], [21,786], [21,789], [25,777,4,-28], [25,786,2,-8], [25,789,2,-8]
-			
 		);
+		updateStructures();
 	}
 	isMoon = system == 2 && !selectedPlanet;
 
@@ -139,10 +176,22 @@ function runSurface() {
 
 	drawBgr();
 	generateSurface();
-	//draw();
 	resize();
 	updateResourcesUI(planet);
 	updateUI();
+}
+
+function updateStructures() {
+	buildings.forEach(building => {
+		if (building[4] && structures.indexOf(building) == -1) {
+			structures.push(building);
+			if (building[9] && building.length > 10) {
+				building[9].forEach(mapElement => {
+					structures.push(mapElement);
+				});
+			}
+		}
+	});
 }
 
 // draw the sky gradient
@@ -336,38 +385,21 @@ function draw() {
 				structureData = structures[j % structures.length];
 				for (k = 0; k < (structureData[1] > 50 ? 1 : 2); k++) {
 					gameContext.font = structuresSize * (structureData[2] || 2) + 'px emoji';
-					/*if (!i) {
-						if (structureData[4]) {
-							// draw menu bgr
-							gameContext.fillStyle = getRGBA(0,0,0,.7);
+					gameContext.strokeStyle = '#' + structureData[7];
+					if (i == 2) {// draw selection
+						if (structureData[4] == 3) {
 							gameContext.beginPath();
-							gameContext.fillRect(getStructureOffset(structureData) - hardWidth / 2, 0, hardWidth, hardHeight);
-							gameContext.closePath();
-							
-							gameContext.globalCompositeOperation = 'destination-out';
-							gameContext.fillStyle = 1;
-							gameContext.beginPath();
-							gameContext.arc(getStructureOffset(structureData), 688, hardWidth*.36, 0, 2*Math.PI);
-							gameContext.closePath();
-							gameContext.fill();
-							gameContext.globalCompositeOperation = 'source-over';
-						}
-					} else */if (i == 2) {
-						if (structureData[4] == 1) {
-							gameContext.beginPath();
-							gameContext.strokeStyle ='#0f0';
 							gameContext.lineWidth = 16;
 							gameContext.arc(
 								stageWidth * k + getStructureOffset(structureData),
-								900 + structureData[3], structureData[5],
+								920 + structureData[3], structureData[5],
 								0, Math.PI * 2
 							);
 							gameContext.closePath();
 							gameContext.stroke();
 						}
-					} else if (i == 4) {
-						if (structureData[4] == 2 && 0|step/45%2) {
-							gameContext.strokeStyle = structureData[0] < 13 ? '#0f0': '#fff';
+					} else if (i == 4) {// highlight building by blinking the selection
+						if (structureData[4] == 1 || structureData[4] == 2 && 0|step/45%2) {
 							gameContext.lineWidth = 16;
 							gameContext.beginPath();
 							gameContext.ellipse(
@@ -389,7 +421,7 @@ function draw() {
 
 	// TODO: implement game objects
 
-	gameObjects[0][0] += 1;
+	/*gameObjects[0][0] += 1;
 	gameObjects[1][0] += 1;
 	gameObjects[1][1] += 1;
 	gameObjects[2][0] += 1;
@@ -408,7 +440,7 @@ function draw() {
 			gameContext.closePath();
 			gameContext.fill();
 		}
-	})
+	})*/
 	
 	gameContext.translate(0, 0);
 	gameContext.restore();
@@ -438,62 +470,136 @@ function moveBgr() {
 	bgrCanvas.style.transform = `translateX(${-hardWidth + bgrX}px)`;
 }
 
+function getInlineClick(structureId, index) {
+	return ` onclick='document.dispatchEvent(new CustomEvent("intr",{"detail":{"s":${structureId},"i":${index}}}))'`;
+}
+
+function getMission(planet, structure, order, structureId, index, type = 0) {
+	let cost = !type ? planet.exploreCost : type == 1 ? planet.mineCost : planet.colonyCost;
+	let disabled = !buildings[0][4] || !buildings[1][4] || !buildings[7][4] || oil < cost[0] || ore < cost[1] || silica < cost[2] || metal < cost[3] || carbon < cost[4];
+	let div = `<div style=float:left;width:150px;height:150px;font-size:128px;border-radius:20px>${String.fromCodePoint(structureMap[planet.char])}</div>`;
+	let html = `<nav style=${disabled?'opacity:0.4;':''}margin-top:${(order-structure[8])*200}px${disabled ? '' : getInlineClick(structureId, index)}>${div}<b>${!type?'Send Probe to':type==1?'Send Miner to':'Colonize'} ${planet.name}<br></b>`;
+	for (j = 0; j < 5; j++) {
+		if (cost[j]) {
+			html += ` -<b>${cost[j]}</b>&#x1F${resources[j]};`;
+		}
+	}
+	html += '</nav>';
+	return html;
+}
+
 function interactSurface(id = activeStructure) {
-	const newX = stageWidth + stageWidth / planetWidth / 2 - getStructureOffset(structures[id]);
+	const structure = structures[id];
+	const newX = stageWidth + stageWidth / planetWidth / 2 - getStructureOffset(structure);
 	frame.speed = (newX - playerX) / 5.5;
+	activeStructure = id;
 	TweenFX.to(frame, !frame.speed ? 0 : 10, {speed: 0}, 0, () => {
 		playerX = newX;
-		structures[id][4] = 1;
-		activeStructure = id;
+		structure[4] = 3;
+		let structureId = structure[0] - 10;
 		menuDiv.style = 'top:135px;left:410px;width:1100px;height:520px';
-		menuDiv.innerHTML = `<b><u>${structures[id][6]}:</u></b>`;
-		menuDiv.innerHTML += `<div style=position:fixed;width:1100px;height:400px;border-radius:30px;background-color:${getRGBA(9,9,9,.3)}><nav style=right:2;width:99px;font-size:99px>&#x1F53C;</nav><nav style=right:2;bottom:0;width:99px;font-size:99px>&#x1F53D;</nav></div>`;
-		if (structures[id][0] == 10) {
-
-			menuDiv.innerHTML += '<nav onclick=_build(1)><div style=float:left;width:150px;height:150px;font-size:128px;border-radius:20px>&#x1F52D;</div><b>Build Observatory<br></b><b>20*</b>&#x1F6E2; <b>5*</b>&#x1FAA8; <b>5*</b>&#x1F9CA; <b>3*</b>&#x1F4A0;</nav>';
-			menuDiv.innerHTML += '<br><br><br><br>';
-			menuDiv.innerHTML += '<nav onclick=build(2)><div style=float:left;width:150px;height:150px;font-size:128px;border-radius:20px>&#x1F52D;</div><b>Build Launch site<br></b><b>50*</b>&#x1F6E2; <b>20*</b>&#x1FAA8; <b>20*</b>&#x1F9CA; <b>10*</b>&#x1F4A0;</nav>';
-			menuDiv.innerHTML += '<br><br><br><br>';
-			menuDiv.innerHTML += '<nav onclick=build(3)><div style=float:left;width:150px;height:150px;font-size:128px;border-radius:20px>&#x1F52D;</div><b>Build Radar<br></b><b>10*</b>&#x1F6E2; <b>5*</b>&#x1FAA8; <b>2*</b>&#x1F9CA; <b>2*</b>&#x1F4A0;</nav>';
+		let html = `<b><u>${structure[6]}</u></b><div style=position:fixed;width:1100px;height:400px;border-radius:30px;background-color:${getRGBA(9,9,9,.3)}>`;
+		if (!structureId) {
+			html+= `<nav onclick='document.dispatchEvent(new CustomEvent("menu",{"detail":{"t":-1,"i":${structureId}}}))' style=right:2;width:99px;font-size:99px>&#x1F53C;</nav><nav onclick='document.dispatchEvent(new CustomEvent("menu",{"detail":{"t":1,"i":${structureId}}}))' style=right:2;bottom:0;width:99px;font-size:99px>&#x1F53D;</nav>`;
+			let order = 0;
+			buildings.forEach((building, index) => {
+				if (!building[4]) {
+					let disabled = index > 7 && (!buildings[2][4] || !buildings[3][4]) || index == 7 && !buildings[4][4] || oil < building[10] || ore < building[11] || silica < building[12] || metal < building[13] || carbon < building[14];
+					let mines = index > 3 && index < 7;
+					let div = `<div style=${mines?'position:absolute':'float:left'};width:150px;height:150px;${mines?'line-height:160px;':''}font-size:${mines?112:128}px;border-radius:20px>${String.fromCodePoint(structureMap[building[0]])}</div>`;
+					if (mines) {
+						div += `<div style=float:left;background-color:transparent;width:${index==4?150:110}px;height:100px;font-size:99px>&#x1F${index == 4 ? resources[4] : index == 5 ? resources[0] : resources[1]};</div>`;
+					}
+					html += `<nav style=${disabled?'opacity:0.4;':''}margin-top:${(order-structure[8])*200}px${disabled ? '' : getInlineClick(structureId, index)}>${div}<b>Build ${building[6]}<br></b>`;
+					for (j = 0; j < 5; j++) {
+						if (building[10 + j]) {
+							html += ` -<b>${building[10 + j]}</b>&#x1F${resources[j]};`;
+						}
+					}
+					html += '</nav>';
+					order ++;
+				}
+				structure[9] = order;
+			});
 			
-		} else if (structures[id][0] == 11) {
-			menuDiv.innerHTML += '<b>Provides 12*</b>&#x1F6E2;<b> and 2*</b>&#x1F9CA;<b> per year</b>';
-		} else if (structures[id][0] == 12) {
-			menuDiv.innerHTML += `<b>Trade 2*</b><nav style=display:inline onclick=_change(1)>&#x1FAA8;</nav><b> for 2*</b><nav style=display:inline onclick=_change(2)>&#x1F9CA</nav><b><br><br><nav onclick=_deal()>Deal ?</nav></b>`;
-		} else if (structures[id][0] == 13) {
-			menuDiv.innerHTML += '<b>13</b>';
-		} else if (structures[id][0] == 14) {
-			menuDiv.innerHTML += '<b>14</b>';
-		} else if (structures[id][0] == 15) {
-			menuDiv.innerHTML += '<br><b>Provides 6*</b>&#x1FAA8;<b>, 2*</b>&#x1F4A0<b> and 1*</b>&#x1F48E;<b> per year</b>';
-		} else if (structures[id][0] == 16) {
-			menuDiv.innerHTML += '<b>16</b>';
-		} else if (structures[id][0] == 17) {
-			menuDiv.innerHTML += '<b>17</b>';
-		} else if (structures[id][0] == 18) {
-			menuDiv.innerHTML += '<b>18</b>';
-		}
+			for (r = 0; r < 3; r ++) {
+				html += getMission(globalPlanets[2].moons[0], structure, order, structureId, 0, r);
+				order ++;
+				globalPlanets.forEach((planet, index) => {
+					if (!planet.status && index < 4) {
+						html += getMission(planet, structure, order, structureId, index, r);
+						order ++;
+					}
+					structure[9] = order;
+				});
+			}
 
-		//TODO: menu functionality
+			html += "</div>";
+		} else if (structure[0] == 11) {//const resources = ['6E2', 'AA8', '9CA', '4A0', '48E'];
+			console.log(year % 5, month % 5)//monthRandom
+			//let _from = ;
+			if (resources[month % 5]) {
+				// TODO
+			}
+			html += `<div style=float:right;margin:40px;width:240px;height:200px;font-size:200px;border-radius:20px>👨‍💼</div>`;
+			html += `<br><b>This month's deal:<br>Get 1 </b><nav style=display:contents;font-size:99px;width:99px>&#x1F${resources[month % 5]};</nav><b> for 2 </b><nav style=display:contents;font-size:99px;width:99px onclick=_change()>&#x1F9CA;</nav><b><br><br><nav onclick='document.dispatchEvent(new CustomEvent("deal"))'>Okay ?</nav></b>`;
+		} else {
+			html += `<br><br><b>${
+				[
+					'<br>Allows observation of the<br>Terrestrial planetary system.',
+					'<br>Establishes communication with launched satellites and probes.',
+					'Produces<br>12*</b>&#x1F9CA;<b> silica and 3*</b>&#x1F48E;<b> carbon<br><br>pieces per year.',
+					'Produces<br>24*</b>&#x1F6E2;<b> oil barrels and 6*</b>&#x1F9CA;<b> silica<br><br>crystals per year.',
+					'Produces<br>12*</b>&#x1FAA8;<b> ores and 4*</b>&#x1F4A0;<b> metal<br><br>compounds per year.',
+					'Enables you to have extraterrestrial colonization programs and missions for searching of artificial life.',
+					'<br>Allows observation of the Gas giants and their moons.',
+					'This Station is ideal for launching spacecraft to the Moon and the<br>closer planets.'
+				][structure[0]-12]
+			}</b>`;
+		}
 		
-		//menuDiv.innerHTML += '<nav>Launch exploration mission to the Moon</nav>';
-		/*for (let i = 0; i < 2; i ++) {
-			menuDiv.innerHTML += '<nav>Launch exploration mission to ' + globalPlanets[i].name + '</nav>';
+		/* if (structure[0] == 12) {
+			html += '<br><br><b>Allows observation of the<br>Terrestrial planetary system.<br><br><br>Tip: build a Planetarium to observe<br>the entire Solar system.</b>';
+		} else if (structure[0] == 13) {
+			html += '<br><br><b>Establishes communication with launched satellites and probes.</b>';//Watches for unidentified flying objects.
+		} else if (structure[0] == 14) {
+			html += `<br><br><b>Produces<br>12*</b>&#x1F9CA;<b> silica and 3*</b>&#x1F48E;<b> carbon<br><br>pieces per year.`;//The structure is currently Level 1<nav onclick='document.dispatchEvent(new CustomEvent("upgr"))'>Upgrade ?</nav></b>
+		} else if (structure[0] == 15) {
+			html += `<br><br><b>Produces<br>24*</b>&#x1F6E2;<b> oil barrels and 6*</b>&#x1F9CA;<b> silica<br><br>crystals per year.`;
+		} else if (structure[0] == 16) {
+			html += `<br><br><b>Produces<br>12*</b>&#x1FAA8;<b> ores and 4*</b>&#x1F4A0;<b> metal<br><br>compounds per year.`;
+		} else if (structure[0] == 17) {
+			html += `<br><br><b>Enables you to have extraterrestrial colonization programs and missions for searching of artificial life.</b>`;//<br>Provides 3 scientifically trained cosmonauts per year.
+		} else if (structure[0] == 18) {
+			html += `<br><br><b>Allows observation of the Gas giants and their moons.<br><br>The focus is on Jupiter's Europa, Saturn's Titan and Neptune's Triton.</b>`;
+		} else if (structure[0] == 19) {
+			html += `<br><br><br><b>This Station is ideal for launching spacecraft to the Moon and the<br>closer planets.</b>`;
 		}*/
 
-		//resDiv.innerHTML = `&#x1FAA8; : <b>${ore}</b><br>&#x1F9CA; : <b>${silica}</b><br>&#x1F4A0; : <b>${metal}</b><br>&#x1F48E; : <b>${carbon}</b>`;
-
+		menuDiv.innerHTML = html;
 	});
 }
 
-function _change(id) {
-	console.log('change', id);
+function _menu(e) {
+	if ((structures[activeStructure][8] > 0 && e.detail.t == -1) || (structures[activeStructure][8] < structures[activeStructure][9]-2 && e.detail.t == 1)) {
+		structures[activeStructure][8] += e.detail.t;
+		interactSurface();
+	}
+}
+
+function _build(id) {
+	let building = buildings[id.detail.i];
+	building[4] = 1;
+	updateStructures();
+	interactSurface(structures.indexOf(building));
+	planet.resources[0] -= building[10];
+	planet.resources[1] -= building[11];
+	planet.resources[2] -= building[12];
+	planet.resources[3] -= building[13];
+	planet.resources[4] -= building[14];
+	updateResourcesUI();
 }
 
 function _deal() {
 	console.log('deal');
-}
-
-function _build(id) {
-	console.log('build', id);
 }

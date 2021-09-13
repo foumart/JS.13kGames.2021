@@ -57,10 +57,14 @@ canvas {
 }
 
 #menuDiv div {
-	font-size: 50px;
+	font-size: 80px;
 	width: 1920px;
 	height: 940px;
-	background-color: rgba(0,0,0,0.4);
+	background-color: rgba(0,0,0,0.5);
+}
+
+#menuDiv div br {
+	line-height: 25px;
 }
 
 #menuDiv b {
