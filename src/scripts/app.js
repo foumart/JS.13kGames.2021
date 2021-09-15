@@ -20,6 +20,7 @@ const tween = {
 // prevents interactions during transitions
 let idle;
 // global pause and counter
+let userPaused;
 let paused;
 let count;
 // variable used to calculate the time passed
@@ -50,6 +51,11 @@ let skewed = true;
 let zoomed;
 let axisRotation = 0;
 
+// temp:
+let probeToMoonSent;
+let minerToMoonSent;
+let colonyToMoonSent;
+
 // interactive website to view planets positions at given time: https://in-the-sky.org/solarsystem.php
 
 function addStars() {
@@ -79,7 +85,7 @@ function getMoons(sys, size = 1, type = 1) {
 	return [,,//       Radius,     Velocity,  Orbit, Color, Name, Type       // Radius, Orbit,  Gravity,   Density,     Semi-major axis
 		[// Earth
 		    new Planet(20*size-15, 208, 115*size-85, 999, 'Moon', 3-size, 0, // 1737.4, 27.32d, 1.62 m/s², 3.344 g/cm³, 384,399 km
-				[50,0,10,20,2], [60,0,10,40,5], [80,0,40,20,10], 37),
+				[50,0,10,20,2], [60,0,10,40,5], [80,0,40,20,10], 37)//,
 		],
 		[// Mars
 		    new Planet(.9, -200, 22), new Planet(.7, 160, 29)
@@ -129,7 +135,6 @@ function getTransitionZoom() {
 }
 
 function setScales() {
-	//scales = (system >= 5 ? [4.8, 4.7, 4.5, 4.2, 3.5, 3] : [4.5, 4, 3, 2, 1.1, .46, .18, .05]).map(scale => scale + (4 - state) / 2);
 	scales = system >= 5 ? [5.8, 5.7, 5.5, 5.2, 4.5, 4] : [5.5, 5, 4, 3, 2.1, 1.46, 1.18, 1.05];
 }
 
@@ -148,9 +153,11 @@ function prepareSystem(sys = 0) {
 	sunscale = basescale;
 
 	// Solar system setting:
-	if (system < 2) {
-		globalPlanets.forEach(globalPlanet => {
-			globalPlanet.addInteractions();
+	if (system < 2) {//console.log(state, system)
+		globalPlanets.forEach((globalPlanet, index) => {
+			if (system || index < 4) {
+				globalPlanet.addInteractions();
+			}
 		});
 		planets = globalPlanets;
 		sky = planets[planets.length - 1]
@@ -168,10 +175,6 @@ function prepareSystem(sys = 0) {
 		planets[5].orbitRadius = planets[5].baseRadius * (!system ? 2 : 1);
 		planets[6].orbitRadius = planets[6].baseRadius * (!system ? 3 : 1);
 		planets[7].orbitRadius = planets[7].baseRadius * (!system ? 4 : 1);
-		/*if (system) {
-			planets[6].velocity = planets[6].baseVelocity;
-			planets[7].velocity = planets[7].baseVelocity;
-		}*/
 	}
 
 	// The Sun or a zoomed planet when inside a nested planetary/moon system
@@ -200,19 +203,13 @@ function prepareSystem(sys = 0) {
 			tween.rotation = 0;
 			tween.scale = sunscale;
 			tween.offset = baseOffset;
-			TweenFX.to(tween, 30, {scale: getInitialZoom()}, 0, () => {
-				// tutorial last step in the solar system view
-				if (tutorial) {
-					tutorial = count;
-				}
-				idle = true;
-			});
+			TweenFX.to(tween, 30, {scale: getInitialZoom()}, 0, () => idle = !tutorial);
 		}
 	}
 }
 
-function selectPlanet(selected) {//console.log('state:'+state, 'system:'+system, 'old:'+selectedPlanet, 'new:'+selected, sun)
-	selectedPlanet = selected;
+function selectPlanet(selected) {//console.log('state:'+state, 'system:'+system, 'old:'+selectedPlanet, 'new:'+selected, sun);
+	selectedPlanet = selected;//const _planet = zoomed ? planet : sun;
 	planet = system > 1 && selectedPlanet > sun.moons.length - 1 ? globalPlanets[system] : sun.moons[selectedPlanet];
 }
 
@@ -229,7 +226,7 @@ function runSolarSystem(_back) {
 	} else if (tween.scale == 0.1) {
 		// initial slow intro zoom on new game start and the display of tutorial instructions
 		TweenFX.to(tween, 180, {scale: sunscale, skew: 1}, 0, () => {
-			TweenFX.to(tween, 195, {speed: 0.018}, 0, () => {
+			TweenFX.to(tween, 196, {speed: 0.018}, 0, () => {
 				uiDiv.style = '';
 				tutorial = 1;
 				toggleSkew(2);
@@ -238,29 +235,32 @@ function runSolarSystem(_back) {
 	}
 }
 
-function pause() {
-	uiDiv.children[1].innerHTML = '&#x25B6;';
-	paused = tween.speed;
-	tween.speed = 0;
-	updateTimeUI();
+function pause(force, user) {
+	if (idle || force) {
+		if (user) userPaused = 1;
+		uiDiv.children[1].innerHTML = '&#x25B6;';
+		paused = tween.speed;
+		tween.speed = 0;
+		updateTimeUI();
+	}
 }
 
-function unpause() {
+function unpause(force, user) {
+	if (tween.speed || !paused) return;
 	tween.speed = paused;
 	paused = 0;
+	if (user) userPaused = 0;
 	uiDiv.children[1].innerHTML = '&#x23F8;';
 	updateTimeUI();
 
 	if (tutorial) {
-		// prepare for the tutorial on the planet surface mode
-		menuDiv.style = '';
-		menuDiv.innerHTML = '';
-		prepareSystem(selectedPlanet);
+		_close();
+		tutorial = count;
 	}
 }
 
 function increaseSpeed() {
-	if (!paused) {
+	if (!paused && idle) {
 		//soundFX.playSound(100 + 100 * tween.speed, 10, 10);
 		if (tween.speed < 0.02) tween.speed = .036;
 		else if (tween.speed < 0.05) tween.speed += .054;
@@ -272,7 +272,7 @@ function increaseSpeed() {
 }
 
 function decreaseSpeed() {
-	if (!paused) {
+	if (!paused && idle) {
 		//soundFX.playSound(200 + 100 * tween.speed, -10, 10);
 		if (tween.speed > 0.3) tween.speed -= .18;
 		else if (tween.speed > 0.1) tween.speed -= .09;
@@ -302,8 +302,8 @@ function onClick(event) {
 						moon.radian = rotations[index] - tween.rotation * Math.PI / 180;
 					});
 				});
-			} else {
-				toggleSkew();
+			} else {//console.log(system, state, selectedPlanet)
+				if (system != 2 || state != 1) toggleSkew();
 			}
 		} else if (!event.target.link.velocity) {
 			prepareSystem();
@@ -404,10 +404,11 @@ function enterSurface() {
 	}, 0, () => {
 		idle = true;
 		switchState(state + 2);
-		if (tutorial) {
-			menuDiv.style = `width:1920px;height:1080px;pointer-events:none;font-family:Verdana`;
-			menuDiv.innerHTML = `<div style=font-size:55px;height:700px><br><u style=font-size:65px>Planet surface view:</u><br>Use the main Headquarters to order<br>various facilities and structures to be built.<br><br>Collect resources for space exploration programs.<br><br>When a terrestrial body is fully explored you can<br> launch missions for collonization and mining of<br>minerals, or concentrate on the search for<br>extraterrestrial life. Enjoy!</div>`;//<div style=width:720px;height:380px;float:left></div><div style=width:720px;height:380px;float:right></div>
-			tutorial = 0;
+		if (tutorial) {//'6E2', 'AA8', '9CA', '4A0', '48E'
+			menuDiv.style = `width:1920px;height:780px`;
+			menuDiv.innerHTML = `<div style=width:1320px;height:550px;left:380px;top:180px><div style=width:1260px;height:490px;font-size:45px;padding:10px;top:20px;left:20px;line-height:65px;background-color:rgba(66,66,66,0.5)><b>Here is your base anual income:<br>12*</b>&#x1F6E2;<b>, 6*</b>&#x1FAA8;<b>, 6*</b>&#x1F9CA;<b>, 3*</b>&#x1F4A0;<b> and 1*</b>&#x1F48E;<b><br><br>Select the Headquarters to view a list of structures and facilities you can build.<br><br>Launching of space missions will be available, when certain conditions are met.</div></div>`;
+			tutorial = 0;//Consider building mines to increase your earnings
+			idle = true;
 		}
 	});
 }
@@ -420,10 +421,13 @@ function tweenToPlanet(selected) {
 		scale: scales[selectedPlanet],
 		offset: baseOffset + planet.orbitRadius * scales[selectedPlanet],
 		rotation: (360 + planet.velocity * 1800 * tween.speed) - Math.atan2(sun.y - planet.y, sun.x - planet.x) * 180 / Math.PI
-	}, 3, () => {
+	}, tutorial ? 1 : 3, () => {
 		idle = !tutorial;
 		zoomed = true;
 		updateUI();
+		if (tutorial) {
+			prepareSystem(selected);
+		}
 	});
 }
 
@@ -479,45 +483,58 @@ function getPlanetsRotation(selected) {
 
 function animate() {
 	if (state) {
-		// run time (1 day per second is the slowest - in surface mode time always runs that slow)
-		earthRad += state > 2 ? 0.018 : tween.speed;
+		// run time (1 day per second is the slowest)
+		earthRad += tween.speed;
 		const _year = (2021 + earthRad / 365.25);
 		const _month = 1 + (0|(year - (0|year)) * 12);
 		const _day = 1 + (0|(year - (0|year)) * 360 % 30);
 		if (year != _year || month != _month || (day != _day && state > 2)) {
 			if (month != _month) {
 				// update randomness for depot
-				monthRandom = 0.5 + Math.random();
+				if (monthRandom < 0) {
+					monthRandom ++;
+				} else {
+					monthRandom = 0.5 + Math.random();
+				}
+
+				// add resources for heaadquarters
+				globalPlanets[2].resources[0] += 1;
+				if (_month % 2) {
+					globalPlanets[2].resources[1] ++;
+					globalPlanets[2].resources[2] ++;
+				}
+				if (_month % 4 == 0) globalPlanets[2].resources[3] ++;
+				if (_month == 1) globalPlanets[2].resources[4] ++;
 
 				// add resources for each available mine
 				if (buildings[4][4]) {
 					globalPlanets[2].resources[2] ++;
-					if (_month % 4 == 0) planet.resources[4] ++;
+					if (_month % 4 == 0) globalPlanets[2].resources[4] ++;
 				}
 				if (buildings[5][4]) {
 					globalPlanets[2].resources[0] += 2;
-					if (_month % 2) planet.resources[2] ++;
+					if (_month % 2) globalPlanets[2].resources[2] ++;
 				}
 				if (buildings[6][4]) {
 					globalPlanets[2].resources[1] ++;
-					if (_month % 3 == 0) planet.resources[3] ++;
+					globalPlanets[2].resources[3] ++;
 				}
 				// increase Earth's population
 				globalPlanets[2].population += 5;
 
-				updateResourcesUI();
+				if (count > 345) updateResourcesUI();
 			}
 			year = _year;
 			month = _month;
 			day = _day;
-			if (count > 345) updateYearUI(state > 2 ? 200 : 0);
+			if (count > 345) updateYearUI();
 		}
 		if (tutorial) {
-			if (count == 580) {
-				pause();
-				menuDiv.style = `width:1920px;height:1080px;pointer-events:none;font-family:Verdana`;
-				menuDiv.innerHTML = `<div style=font-size:55px;background-color:rgba(0,0,0,0.7)><br><br><br><u style=font-size:65px>Solar System view:</u><br><br>Information for the currently selected<br>planetary system is displayed on the left.<br><br>There is a summary of the resources collected<br>on the planet, including the inner moons<br>on which you have established settlements.<br><br>By default time runs at one day / second.<br>Use the time controls only when you really<br>need to speed up the timeflow.<br><br>Tap ▶ to continue.</div><div style=width:140px;height:140px;float:left></div><div style=width:1620px;height:140px;float:right></div>`;
-			} else if (count == tutorial + 30) {
+			if (count == 550) {
+				pause(true);
+				menuDiv.style = `width:1920px;height:940px`;
+				menuDiv.innerHTML = `<div><div style=pointer-events:none;width:1380px;height:820px;top:120px;left:480px;background-color:rgba(66,66,66,0.5)><div style=width:1320px;height:760px;top:20px;left:20px;font-size:50px;padding:10px;background-color:rgba(66,66,66,0.5)><b>Information for the currently selected<br>planetary system is displayed on the left,<br>including summary of the resources collected<br>on the planet and all of the inner moons on<br>which you have established settlements.<br><br>Below is the Time speed control menu.<br>By default time runs at one day per second.<br>Use the time controls only when you really need to speed up the timeflow.<br><br>Tap</b> ▶ <b>to continue.</b></div></div></div><nav style=top:130px;width:90px;right:70px onclick='document.dispatchEvent(new CustomEvent("clos",{"detail":1}))'><b>&#10006;</b></nav>`;
+			} else if (count == tutorial + 15) {
 				selectedPlanet = -1;
 				enterSurface();
 			}
@@ -553,8 +570,9 @@ function animate() {
 				r = count < 331 ? 151 : (345 - count) * 10;
 				uiDiv.style = `margin-top:${r}px`;
 				updateYearUI(r);
-				updateTimeUI(r);
-			} else uiDiv.style = '';
+			} else if (count == 346) {
+				uiDiv.style = '';
+			}
 
 			// don't render planets which are outside the visible area
 			if (system < 2) {

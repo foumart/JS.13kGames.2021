@@ -164,16 +164,36 @@ function pack(callback) {
 		for (let i = 1; i < segmentedJs.length - 1; i++) {
 			variableNames.push(segmentedJs[i].split(',')[1]);
 		}
+		const varsToRename = [];
+		for (let i = 0; i < variableNames.length; i++) {
+			const varName = variableNames[i];
+			const renamedVar = varName.replace('$', '_');
+			if (varName != renamedVar) {
+				varsToRename.push([varName, renamedVar]);
+				variableNames[i] = renamedVar;
+			}
+		}
 		segmentedJs[segmentedJs.length-1] = segmentedJs[segmentedJs.length-1].substring(segmentedJs[segmentedJs.length-1].indexOf(';') + 1);
 		js = segmentedJs[0] + segmentedJs[segmentedJs.length-1];
 
+		for (let i = 0; i < varsToRename.length; i ++) {
+			// Regex is not replacing all occurancies..
+			//const regex = new RegExp(varsToRename[i][0], 'g');
+			//js = js.replace(regex, varsToRename[i][1]);
+			js = js.split(varsToRename[i][0]).join(varsToRename[i][1]);
+		}
+
 		// replace css ids
 		for (let i = 0; i < elementIds.length; i++) {
-			let regex = new RegExp(elementIds[i], 'g');
+			const regex = new RegExp(elementIds[i], 'g');
 			css = css.replace(regex, variableNames[i]);
 		}
 	}
-	src('src/index.html', { allowEmpty: true })
+	let stream = src('src/index.html', { allowEmpty: true });
+	if (!debug) for (let i = 0; i < elementIds.length; i++) {
+		stream = stream.pipe(replace(elementIds[i], variableNames[i], replaceOptions));
+	}
+	stream
 		.pipe(replace('{MONETIZATION}', monetization, replaceOptions))
 		.pipe(replace('{TITLE}', title, replaceOptions))
 		.pipe(gulpif(social != false && mobile != false, htmlreplace({'mobile': mobile, 'social': social})))
@@ -181,23 +201,14 @@ function pack(callback) {
 		.pipe(gulpif(social != false && mobile === false, htmlreplace({'mobile': '', 'social': social})))
 		.pipe(gulpif(social === false && mobile === false, htmlreplace({'mobile': '', 'social': ''})))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
-		.pipe(concat('temp.html'))
-		.pipe(dest(dir + '/tmp/'))
-		.on('end', () => {
-			let stream = src(dir + '/tmp/temp.html', { allowEmpty: true });
-			if (!debug) for (let i = 0; i < elementIds.length; i++) {
-				stream = stream.pipe(replace(elementIds[i], variableNames[i], replaceOptions));
-			}
-			stream
-				.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
-				.pipe(replace('"', '', replaceOptions))
-				.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
-				.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
-				.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
-				.pipe(concat('index.html'))
-				.pipe(dest(dir + '/'))
-				.on('end', callback);
-		});
+		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
+		.pipe(replace('"', '', replaceOptions))
+		.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
+		.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
+		.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
+		.pipe(concat('index.html'))
+		.pipe(dest(dir + '/'))
+		.on('end', callback);
 }
 
 // delete the temporary folder generated during packaging

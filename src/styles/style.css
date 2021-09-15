@@ -12,12 +12,10 @@ body {
 div, canvas {
 	position: absolute;
 	user-select: none;
-	/* box-sizing: border-box; */
-	/* -webkit-tap-highlight-color: transparent; */
+	-webkit-tap-highlight-color: transparent;
 }
 
 canvas {
-	/* touch-action: none; */
 	pointer-events: none;
 }
 
@@ -50,7 +48,7 @@ canvas {
 
 #menuDiv nav {
 	position: absolute;
-	width: 910px;
+	width: 920px;
 	padding: 20px 10px;
 	float: unset;
 	font-size: 60px;
@@ -92,7 +90,11 @@ canvas {
 	text-underline-offset: 10px;
 }
 
+#lst::-webkit-scrollbar {
+	display: none;
+}
+
 @font-face {
 	font-family: emoji;
-	src: url(https://www.foumartgames.com/dev/js13kGames/resources/Twemoji.ttf)
+	src: url(https://www.foumartgames.com/dev/js13kGames/resources/Twemoji.ttf);
 }

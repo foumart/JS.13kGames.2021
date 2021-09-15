@@ -2,7 +2,10 @@
 // ------------------------------
 
 class Planet {
-	constructor(radius, velocity, orbitRadius, color = 666, name, moons, radian = 0, exploreCost = [250,0,25,50,10], mineCost = [300,0,20,100,20], colonyCost = [500,0,100,150,50], char = 39) {
+	constructor(radius, velocity, orbitRadius, color = 666, name, moons, radian = 0,
+		exploreCost = [250,0,25,50,10], mineCost = [300,0,20,100,20], colonyCost = [500,0,100,150,50], char = 39,
+		resources = [0,0,0,0,0], status = 0
+	) {
 		this.name = name;
 		this.actualSun = color == 'ff3';
 		this.isEarth = color == '03f';
@@ -32,13 +35,12 @@ class Planet {
 			}
 		}
 
-		this.status = this.isEarth ? 4 : name == "Moon" ? 1 : 0;//name == "Venus" ? 1 : name == "Moon" ? 2 : 0;// 0: Unexplored, 1: Explored, 2: Yielded, 3: Colonized, 4: Inhabited (Earth)
-		//[100,20,10,5,0]
+		this.status = this.isEarth ? 4 : this.name == "Moon" ? probeToMoonSent || colonyToMoonSent || minerToMoonSent ? 1 : status : status;
 		this.exploreCost = exploreCost;
 		this.mineCost = mineCost;
 		this.colonyCost = colonyCost;
 		this.char = char;
-		this.resources = this.isEarth ? [100,50,50,20,10] : [0,0,0,0,0];//name == "Moon" ? [0,5,5,2,1] : name == "Venus" ? [0,0,0,0,5] : [0,0,0,0,0];
+		this.resources = this.isEarth ? [91,45,45,18,10] : resources;
 		this.population = this.isEarth ? 7900 : 0;
 	}
 
