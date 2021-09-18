@@ -2,9 +2,13 @@
 // ------------------------------
 
 class Planet {
-	constructor(radius, velocity, orbitRadius, color = 666, name, moons, radian = 0,
-		exploreCost = [250,0,25,50,10], mineCost = [300,0,20,100,20], colonyCost = [500,0,100,150,50], char = 39,
-		resources = [0,0,0,0,0], status = 0
+	constructor(velocity, color = 666, name, moons, radian = 0,
+		exploreCost = [250,0,25,50,10],
+		mineCost = [300,0,20,100,20],
+		colonyCost = [500,0,100,150,50],
+		char = 39,
+		resources = [0,0,0,0,0],
+		status = 0
 	) {
 		this.name = name;
 		this.actualSun = color == 'ff3';
@@ -13,35 +17,40 @@ class Planet {
 		this.y = spaceCanvas.height / 2,
 		this.startX = this.x;
 		this.startY = this.y;
-		this.radius = radius;
 		this.color = '#' + color;
 		this.velocity = this.baseVelocity = velocity / 1000;
 		this.radian = radian;
-		this.orbitRadius = this.baseRadius = orbitRadius;
 		this.width = 3;
 		if (moons) {
 			if (moons.length) {
 				this.moons = moons;
-				moons.forEach(moon => {
-					if (this.width < 6) this.width += moon.radius > 6 || moon.radius == 5 ? 1 : moon.radius >= 1 ? 0.25 : moon.radius < 1 ? 0.5 : 0;
-				});
 			}
-			if ((!system && (radius < 25 || radius > 50) || system == 1) && (moons.length || moons == 1) || system > 1) {
-				const div = document.createElement('div');
-				this.div = div;
-				div.link = this;
-				div.style = `background-color:white;border-radius:2000px;${this.velocity?'cursor:pointer':''};opacity:0`;
-				this.addInteractions();
-			}
+			const div = document.createElement('div');
+			this.div = div;
+			div.link = this;
+			div.style = `background-color:white;border-radius:2000px;${this.velocity?'cursor:pointer':''};opacity:0`;
 		}
 
-		this.status = this.isEarth ? 4 : this.name == "Moon" ? probeToMoonSent || colonyToMoonSent || minerToMoonSent ? 1 : status : status;
+		this.status = this.isEarth ? 4 : status;
 		this.exploreCost = exploreCost;
 		this.mineCost = mineCost;
 		this.colonyCost = colonyCost;
 		this.char = char;
 		this.resources = this.isEarth ? [91,45,45,18,10] : resources;
 		this.population = this.isEarth ? 7900 : 0;
+	}
+
+	setRadiuses(radius = 90, orbitRadius = 0) {
+		this.radius = radius;
+		this.orbitRadius = this.baseRadius = orbitRadius;
+	}
+
+	setWidths() {
+		if (Array.isArray(this.moons)) {
+			this.moons.forEach(moon => {
+				if (this.width < 6) this.width += moon.radius > 6 || moon.radius == 5 ? 1 : moon.radius >= 1 ? 0.25 : moon.radius < 1 ? 0.5 : 0;
+			});
+		}
 	}
 
 	addInteractions() {

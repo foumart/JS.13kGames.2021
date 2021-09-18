@@ -147,10 +147,11 @@ function runSurface() {
 	bgrX = 0;
 	offset = 0 | system / 2;
 	structures = [];//onclick="console.log(this.innerHTML.codePointAt(0))"
-	isEarth = selectedPlanet == -1;
+	isEarth = system == 2 && selectedPlanet == -1;
 	if (tutorial) buildings[0][4] = 2;
 	if (isEarth) {
-		selectPlanet(2);
+		//selectedPlanet = 0;
+		selectPlanet(0);
 		structures.push(
 			[5,358,3,-3], [1,353,4.4,3], [5,365,4,-2], [5,360,5,3],
 			[27,394,12,94], [29,388,12,68], [35,417,4,-12], [35,422,9], [35,433.5,6], [6,442,3], [6,447,4,3],
@@ -216,7 +217,7 @@ function drawBgr() {
 	for (i = 0; i < 5; i++) {
 		gradient.addColorStop(
 			i / 4.2,
-			getRGBA(red*colors[selectedPlanet][i][0], green*colors[selectedPlanet][i][1], blue*colors[selectedPlanet][i][2], colors[selectedPlanet][5][i])
+			getRGBA(red*colors[system][i][0], green*colors[system][i][1], blue*colors[system][i][2], colors[system][5][i])
 		);
 	}
 	bgrContext.fillStyle = gradient;
@@ -228,12 +229,12 @@ function drawBgr() {
 function generateSurface() {
 	//generate mountines
 	bgrMountines = [[0, 0]];
-	let len = isEarth ? 90 : (system < 2 ? [59, 80, 90, 60] : [59, 32, 60, 50])[selectedPlanet];
+	let len = isEarth ? 90 : [59, 80, 90, 60][selectedPlanet];
 	for (x = 1; x < len; x++) {
 		r = Math.random();
 		bgrMountines.push([
 			(stageWidth / len) * x + r * (stageWidth / len) / 2,
-			!selectedPlanet
+			/*!selectedPlanet
 					?
 				(0|x/4%2?-50:-5) + r * 25 * (x % 2 == 0 ? 1 : -1)
 					: 
@@ -244,12 +245,12 @@ function generateSurface() {
 			selectedPlanet == 1 && system > 2
 					?
 				(x % 2 == 0 ? -r/2 : r) * 40 * (x % 2 == 0 ? 1 : -1)
-					:
+					:*/
 			isEarth || selectedPlanet == 3
 					?
 				(0 | x / 16.2) % 2 == 0 && x > 2 || [2,19,20,21,32,50,51,52,64].indexOf(x) > -1
 								?
-							!isEarth && x%10==0  ? -220 : (0 | x / 5 % 2 && x < 70 || x == 20 ? -80 : -25) + r * 25 * selectedPlanet * (x % 2 == 0 ? 1 : -1)
+							!isEarth && x%10==0  ? -220 : (0 | x / 5 % 2 && x < 70 || x == 20 ? -80 : -25) + r * 50 * (x % 2 == 0 ? 1 : -1)
 								:
 							isEarth ? 175 : 125 * r
 					:
@@ -346,14 +347,16 @@ function draw() {
 
 		gameContext.fillStyle = `#${reds.toString(16)}0${greens.toString(16)}0${blues.toString(16)}0`;
 		gameContext.moveTo(0, hardHeight-90);
-		const surfaceHeight = !selectedPlanet ? (200-i*i*5) : selectedPlanet == 2 ? (175-i*15) : (200-i*25);
+		const surfaceHeight = isEarth ? (175-i*15) : !selectedPlanet ? (200-i*i*5) : (200-i*25);
 		let distance, previousX = 0;
 		if (!isEarth || i) {
 			for (r = 0; r < bgrMountines.length + bgrMountines.length / (planetWidth - 1); r++) {
 				x = (r >= bgrMountines.length ? stageWidth : 0) + bgrMountines[r % bgrMountines.length][0];
 				y = hardHeight - surfaceHeight + bgrMountines[r % bgrMountines.length][1] * (i==3 ? 0.5 : i==4 ? 0.2 : 1 + i/6) + i * (i > 2 ? i*5 : 10);
 				distance = x - previousX;
-				if (isMoon && (((r % 5 == 0 || r % 2 == 0) && r % 4 > 0 && i < 3) || (r % 6 == 0 && r != 30 && i == 3) || (r % 4 == 0 && r % 5 > 0 && r % 6 > 0 && i == 4))) {
+				if (isEarth) {
+					gameContext.lineTo(x, y);
+				} else if (isMoon && (((r % 5 == 0 || r % 2 == 0) && r % 4 > 0 && i < 3) || (r % 6 == 0 && r != 30 && i == 3) || (r % 4 == 0 && r % 5 > 0 && r % 6 > 0 && i == 4))) {
 					// moon surface full with craters
 					gameContext.bezierCurveTo(x - distance, y + 60 - i * 5, x, y + 60 - i * 5, x, y);
 				} else if (!selectedPlanet && ((r % 5 == 0 && i < 3) || (r % 2 == 0 && r % 5 > 0 && r % 6 > 0 && i == 4))) {
@@ -632,10 +635,10 @@ function _misn(event) {//console.log(event);
 	planet.resources[3] -= missionCost[3];
 	planet.resources[4] -= missionCost[4];
 	targetPlanet.status = missionType + 1;
-	if (targetPlanet.name == "Moon") {
+	/*if (targetPlanet.name == "Moon") {
 		probeToMoonSent = true;
 		globalPlanets[2].moons[0].status = 1;
-	}
+	}*/
 	updateResourcesUI();
 	interactSurface(structures.indexOf(buildings[9]));
 }
