@@ -3,52 +3,55 @@
 
 class Planet {
 	constructor(radius, velocity, orbitRadius, color = 666, name, moons, radian = 0,
-		exploreCost = [250,0,25,50,10], mineCost = [300,0,20,100,20], colonyCost = [500,0,100,150,50], char = 39,
-		resources = [0,0,0,0,0], status = 0
+		exploreCost = [250,0,25,50,10,0], mineCost = [300,0,20,100,20,2], colonyCost = [500,0,100,150,50,5], char = 39,
+		resources = [0,0,0,0,0,0,0,0], status = 0
 	) {
 		this.name = name;
 		this.actualSun = color == 'ff3';
-		this.isEarth = color == '03f';
+		this.isEarth = color == '06f';
 		this.x = spaceCanvas.width / 2,
 		this.y = spaceCanvas.height / 2,
 		this.startX = this.x;
 		this.startY = this.y;
 		this.radius = radius;
 		this.color = '#' + color;
-		this.velocity = this.baseVelocity = velocity / 1000;
+		this.velocity = velocity / 1000;
+		this.render = 1;
 		this.radian = radian;
 		this.orbitRadius = this.baseRadius = orbitRadius;
 		this.width = 3;
+		this.system = 0;
 		if (moons) {
 			if (moons.length) {
+				if (moons.length != 2) this.system = 1;
 				this.moons = moons;
 				moons.forEach(moon => {
 					if (this.width < 6) this.width += moon.radius > 6 || moon.radius == 5 ? 1 : moon.radius >= 1 ? 0.25 : moon.radius < 1 ? 0.5 : 0;
 				});
 			}
-			if ((!system && (radius < 25 || radius > 50) || system == 1) && (moons.length || moons == 1) || system > 1) {
-				const div = document.createElement('div');
-				this.div = div;
-				div.link = this;
-				div.style = `background-color:white;border-radius:2000px;${this.velocity?'cursor:pointer':''};opacity:0`;
-				this.addInteractions();
-			}
+			const div = document.createElement('div');
+			this.div = div;
+			div.link = this;
+			div.style = `background-color:#fff;border-radius:2000px;${this.velocity?'cursor:pointer':''};opacity:0`;
+			this.addInteractions();
 		}
 
-		this.status = this.isEarth ? 4 : this.name == "Moon" ? probeToMoonSent || colonyToMoonSent || minerToMoonSent ? 1 : status : status;
+		this.status = this.isEarth ? 4 : status;//1
 		this.exploreCost = exploreCost;
 		this.mineCost = mineCost;
 		this.colonyCost = colonyCost;
 		this.char = char;
-		this.resources = this.isEarth ? [91,45,45,18,10] : resources;
 		this.population = this.isEarth ? 7900 : 0;
+		this.resources = this.isEarth ? [91,45,45,28,10,this.population,-1,0] : resources;
+
+		// probes, miners and colonizers must have progress data
 	}
 
 	addInteractions() {
 		if (this.div) {
 			spaceDiv.prepend(this.div);
 			this.div.onclick = onClick;
-			this.div.onmouseover = () => this == sun ? this.div.style.opacity = !skewed && idle ? 0.2 : 0 : this.highlighted = !skewed;
+			this.div.onmouseover = () => this == sun ? this.div.style.opacity = !skewed && (idle || tutorial) ? 0.2 : 0 : this.highlighted = !skewed;
 			this.div.onmouseout = () => this == sun ? this.div.style.opacity = 0 : this.highlighted = false;
 		}
 	}
@@ -72,6 +75,8 @@ class Planet {
 				}
 			}
 
+			if (!this.render) return;
+
 			if (!dontDraw) this.draw();
 
 			if (this.moons) {
@@ -93,7 +98,7 @@ class Planet {
 		// draw planet orbit interactive top-down area
 		if (this.div && (this.highlighted || sun.moons.indexOf(this) == selectedPlanet && zoomed) && idle) {
 			spaceContext.globalAlpha = this == sky ? 0.06 : sun.moons.indexOf(this) == selectedPlanet || !zoomed ? this.highlighted ? 0.1 : 0.08 : 0.08;
-			this.drawPath((this.radius < 12 ? system == 5 || system == 6 ? 7 : 12 : this.radius) * this.width * tween.scale, 'fff');
+			this.drawPath((this.radius < 12 ? system == 5 || system == 6 ? 7 : 12 : this.radius) * this.width * (sun.moons.indexOf(this) > 3 && system < 2 && !buildings[4][4] ? 1.79 : 1) * tween.scale, 'fff');
 			spaceContext.globalAlpha = 1;
 		}
 
@@ -118,9 +123,10 @@ class Planet {
 	positionArea() {
 		// planet click area
 		if (this.div) {
-			this.div.style.transform = `translateX(${(!skewed ? 1920 : this.x) + tween.offset}px) translateY(${!skewed ? 540 : this.y - 1380}px)`;
-			this.div.style.width = this.div.style.height = (!skewed || this == sky ? this.orbitRadius + this.radius * (this == sun ? 1.04 : 2) : this.radius) * 2 * tween.scale + 'px';
-			this.div.style.marginLeft = this.div.style.marginTop = `-${(!skewed || this == sky ? this.orbitRadius + this.radius * (this == sun ? 1.04 : 2) : this.radius) * tween.scale}px`;
+			this.div.style.transform = `translateX(${1920 + tween.offset}px) translateY(${540}px)`;
+			const size = (this.orbitRadius + this.radius * (this == sun ? 1.04 : 2)) * (sun.moons.indexOf(this) > 3 && system < 2 ? 1.2 : 1) * tween.scale;
+			this.div.style.width = this.div.style.height = size * 2 + 'px';
+			this.div.style.marginLeft = this.div.style.marginTop = `-${size}px`;
 		}
 	}
 
@@ -176,7 +182,7 @@ class Planet {
 	}
 
 	draw3d() {
-		if (this.moons && this.velocity) {
+		if (this.moons && this.velocity && this.render) {
 			// draw planet upper part color and shadow to cover other planets in order to create a 3d illusion
 			this.drawArc(false, true, Math.PI, 0);
 			this.drawArc(true, false, Math.PI, 0);

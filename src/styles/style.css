@@ -72,21 +72,25 @@ canvas {
 }
 
 #resDiv {
+	display: none;
 	pointer-events: none;
 	position: fixed !important;
-	top: 120px;
-	margin: 15px;
+	top: 180px; left: -8px;
+	padding: 25px 15px 0 20px;
+	background-color:rgba(64,64,80,0.6);
+	border: 4px solid #335;
+	border-top-right-radius: 30px;
+	border-bottom-right-radius: 30px;
 }
 
 #resDiv b {
 	font-family: Verdana;
 	font-size: 50px;
-	line-height: 85px;
+	line-height: 80px;
 }
 
 #resDiv u, #menuDiv u {
 	font-size: 50px;
-	line-height: 120px;
 	text-underline-offset: 10px;
 }
 
@@ -94,7 +98,12 @@ canvas {
 	display: none;
 }
 
+.stroked {
+	text-shadow: -3px -3px 0 rgba(0,0,0,0.75), 3px -3px 0 rgba(0,0,0,0.75), -3px 3px 0 rgba(0,0,0,0.75), 3px 3px 0 rgba(0,0,0,0.75);
+}
+
 @font-face {
 	font-family: emoji;
-	src: url(https://www.foumartgames.com/dev/js13kGames/resources/Twemoji.ttf);
+	src: url(Twemoji.ttf);
+	/* src: url(https://www.foumartgames.com/dev/js13kGames/resources/Twemoji.ttf); */
 }

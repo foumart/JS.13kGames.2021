@@ -9,6 +9,7 @@ const frameDiv = document.getElementById("frameDiv");
 const uiDiv = document.getElementById("uiDiv");
 const menuDiv = document.getElementById("menuDiv");
 const resDiv = document.getElementById("resDiv");
+let navDiv;
 
 window.addEventListener("load", init);
 
@@ -76,8 +77,8 @@ function init() {
 		// load Terrestrial system
 		//load(1, 1, 1);
 
-		// load Solar system
-		//load(1, 0, 2);// tutorial
+		// load Venus
+		//load(1, 1, 3);
 
 		// load Earth
 		//load(2, -1, 3, 350, 0.018, 0, true);
@@ -99,7 +100,8 @@ function load(_system = 0, _selectedPlanet = 0, _state = 0, _count = 0, _speed =
 	prepareSystem(_system);
 
 	//system<2:-1:?,0:Mercury,1:Venus,2:Earth,3:Mars; | system==2:-1:Earth,0:Moon,1:Sky(not used); | system==3:-1:?,0:Io,1:Europa,2:Ganimede,3:Callisto
-	selectedPlanet = _selectedPlanet;
+	selectedPlanet = _selectedPlanet;// == -1 ? 2 : _selectedPlanet;
+	planet = globalPlanets[selectedPlanet == -1 ? 2 : selectedPlanet];
 
 	count = _count;
 	tween.speed = _speed;
@@ -139,341 +141,15 @@ function getRGBA(red, green, blue, alpha) {
 	return `rgba(${red*16},${green*16},${blue*16},${alpha})`;
 }
 
-function clearUI(x, y, width, height = hardHeight) {
-	overContext.clearRect(x || 0, y || 0, width || hardWidth, height || hardHeight);
-}
-
-function updateUI(text, x = 16, y = 64, size = 70, clear, bold) {
-	if (!text) clearUI(0, 0, hardWidth, hardHeight);
-	if (clear) clearUI(x-5, y-size, hardWidth-x, size * 1.55);
-	if (text || count > 340 || !state) {
-		overContext.textAlign = !x ? 'center' : 'left';
-		overContext.shadowColor = '#000';
-		overContext.shadowBlur = 5;
-		overContext.font = `${state > 2 || !text || !state || bold ? 'bold ' : ''}${size}px Arial`;
-		overContext.fillStyle = '#fff';
-		const _planet = zoomed ? planet : sun;
-		if (!text) overContext.fillRect(x, y + 12, overContext.measureText(text || _planet.name).width, 5);
-		overContext.fillText(text || _planet.name, x || hardWidth / 2, y);
-
-		// TODO: menu/info for planets
-		if (!text && state < 3) {
-			overContext.font = '36px Arial';
-			overContext.fillStyle = '#888';
-			let description = `Population: ${_planet.population / 1000}m.`;//count > 360 ? 'Tap to zoom in' : '';
-			if (zoomed) {
-				if (!_planet.moons || _planet.moons.length == 2) {
-					description = ['Unexplored.','Explored.','Being mined.','Colonized.'][_planet.status];
-				}
-			} else if (_planet.moons.length == 9) {
-				// terrestrial planetary / solar system
-				if (!system) description = 'Gas giants currently unreachable.';
-			}// else {
-			//	description = `Population: ${_planet.population / 1000}m`;
-			//}
-			overContext.fillText(description, x, y+64);
-
-			updateTimeUI();
-			updateYearUI();
-			updateResourcesUI();
-		}
-	}
-}
-
-function updateTimeUI(posY = 0) {
-	if (state < 3 && count > 345) {
-		tween.speed = +tween.speed.toFixed(3);
-		updateUI('Timeflow: ' + (paused ? 'paused' : `${1 + (0 | tween.speed * 55.5)} day / second`), 14, 850 + posY, 36, 1);
-	}
-}
-
-function updateYearUI(posY = 0, posX) {
-	if (state > 2) {
-		posX = 1;
-		posY = 150;
-	}
-	updateUI((posX ? '' : 'Year: ') + (0|year), posX ? 330 : 14, 915 + posY, 52, 1, 1);
-	updateUI((month < 10 ? '/ 0' + month : '/ ' + month), posX ? 455 : 280, 915 + posY, 44, 1);
-	updateUI((day < 10 ? '/ 0' + day : '/ ' + day), posX ? 540 : 364, 915 + posY, 36, 1);
-}
-
-function getResources(moon) {
-	oil += !moon ? -oil : moon.resources[0];
-	ore += !moon ? -ore : moon.resources[1];
-	silica += !moon ? -silica : moon.resources[2];
-	metal += !moon ? -metal : moon.resources[3];
-	carbon += !moon ? -carbon : moon.resources[4];
-}
-
-function browseForResources(moon) {
-	moon.moons.forEach((moon, index) => {
-		if (index < state * 4) getResources(moon);
-		if (moon.moons) browseForResources(moon);
-	});
-}
-
-function updateResourcesUI() {
-	//const basePlanet = planet;//!zoomed && state < 3 ? sun : planet;
-	//console.log(basePlanet)
-	getResources();
-	getResources(planet);
-	if (planet.moons && state < 3 && system < 2) {
-		browseForResources(planet);
-	}
-	//display resources:
-	if (planet.status || (!selectedPlanet && !zoomed)) {
-		resDiv.innerHTML = '<b><u>Resources:</u>';
-		for (i = 0; i < 5; i++) {
-			resDiv.innerHTML += `<br>&#x1F${resources[i]}; <b>${[oil,ore,silica,metal,carbon][i]}</b>`;
-		}
-	} else {
-		resDiv.innerHTML = '';
-	}
-}
-
-function getNavButton(id) {
-	return `<nav id=nav${id} ${state > 2 ? 'style="margin:829px 0 0 0;font-size:92px;padding:3px 12px 9px 0;background-color:#000"' : ''}>&#x23`;
-}
-
-function setUI() {
-	spaceCanvas.style.display = spaceDiv.style.display = state && state < 3 ? 'block' : 'none';
-	gameCanvas.style.display = bgrCanvas.style.display = state < 3 ? 'none' : 'block';
-	gameDiv.style = 'width:1920px;height:1080px;' + (!state ? 'filter:blur(9px) hue-rotate(-40deg)' : state < 3 ? 'margin-top:940px' : '');
-	frameDiv.style = state && state < 3 ? 'display:none' : `width:${!state ? hardWidth : frameWidth}px;height:${!state ? hardHeight : surfaceHeight}px;`;
-	uiDiv.style = state ? '' : 'opacity:0.4;font-size:125px;transform:scale(15.7,12) translateX(898px) translateY(-48px)';
-	uiDiv.innerHTML = state ? `${getNavButton(0)}EA;</nav>${getNavButton(1)}F8;</nav>${getNavButton(2)}E9;</nav>` : '&#x1F30C;';
-	if (state > 2) uiDiv.innerHTML += '<nav id=sys style="filter:hue-rotate(180deg) saturate(0.5);font-size:160px;float:right">&#x1FA90;</nav>'
-									+ (system == 2 ? '<nav id=base style="float:right;margin:0 42px 0 1400px;width:99px;height:99px;line-height:120px">&#x1F3E2;</nav>' : '');
-}
-
-function switchState(_state = 0, _back = false) {
+function switchState(_state = 0, _back = false, _callback) {
 	state = _state;
 	if (!state) {
 		showMеnu();
 	} else if (state < 3) {
-		selectPlanet(0);
-		runSolarSystem(_back);
+		if (!_back) selectPlanet(0);
+		runSolarSystem(_back, _callback);
 	} else {
 		runSurface();
 	}
 	setUI();
-}
-
-function showMеnu() {
-	updateUI("in ASCENT", 0, 500, 220);
-	updateUI("Start Game", 0, 760, 70);
-	updateUI("Developed by Noncho Savov, FoumartGames © 2021. Submission for JS13K games, theme SPACE.", 0, 999, 32);
-}
-
-// mouse / touch interaction
-let interactionDistance = -1;
-
-function addListeners() {
-	if (mobile) {
-		// mobile events
-		game.ontouchstart = touchStartHandler;
-	} else {
-		// desktop events
-		game.onmousedown = touchStartHandler;
-	}
-
-	// mouse wheel event
-	game.onwheel = e => {
-		if (state < 3 && idle) {
-			onWheel(e);
-		}
-	};
-
-	// UI button events
-	uiDiv.onmousedown = e => {
-		//soundFX = new SoundFX();
-		//soundFX.init();
-
-		if (!state) {
-			switchState(1);// TODO: fetch game progress
-		} else {
-			if (state > 2) {
-				if (e.target == uiDiv) {
-					if (activeStructure && (e.clientX - offsetX) / scale > 750 && (e.clientX - offsetX) / scale < 1170 && (e.clientY - offsetY) / scale > 700) {
-						// deselect
-						activeStructure = -1;
-					}
-				} else if (e.target.id == 'base') {
-					// center surface
-					removeInteractions();
-					interactSurface(structures.indexOf(buildings[0]));
-				} else if (e.target.id == 'sys') {
-					// get back from surface mode
-					removeInteractions();
-					switchState(buildings[8][4] ? 2 : 1, true);
-				}
-			}
-			// system speed control
-			if (e.target.id.substr(0,3) == 'nav') {
-				const btn = e.target.innerHTML.codePointAt(0) % 6;
-				removeInteractions();
-				if (!btn) {
-					unpause(true, true);
-				} else if (btn == 1) {
-					increaseSpeed();
-				} else if (btn == 2) {
-					decreaseSpeed();
-				} else {
-					pause(true, true);
-				}
-			}
-		}
-	}
-
-	// html inlined event dispatches from the structure menues
-	document.addEventListener("head", _head);
-	document.addEventListener("misn", _misn);
-	document.addEventListener("menu", _menu);
-	document.addEventListener("deal", _deal);
-	document.addEventListener("clos", _close);
-}
-
-function removeInteractions() {
-	if (paused) unpause();//!userPaused
-	Array.from(spaceDiv.children).forEach(div => div.style.pointerEvents = 'none');
-	if (structures) structures.forEach(structure => {
-		if (structure[4] == 3) structure[4] = 1;
-		activeStructure = 0;
-		menuDiv.innerHTML = '';
-		menuDiv.style = '';
-	})
-}
-
-function touchStartHandler(event) {
-	const lst = menuDiv.children[1];
-	if (tutorial || event.target == lst || lst && lst.contains(event.target)) return;
-	if (frame.speed && !activeStructure) {
-		frame.killed = true;
-		frame.speed = 0;
-	}
-	if (mobile) {
-		assignClient(event);
-		game.ontouchmove = touchMoveHandler;
-		game.ontouchend = game.ontouchcancel = touchEndHandler;
-	} else {
-		game.onmousemove = touchMoveHandler;
-		game.onmouseup = game.onmouseleave = touchEndHandler;
-	}
-	interactionDistance = -2;
-
-	if (state > 2) {
-		if ((event.clientY - offsetY) / scale < surfaceHeight) {
-			removeInteractions();
-			// minimap frame drag
-			if ((event.clientX - offsetX) / scale < frameOffsetX || (event.clientX - offsetX) / scale > frameOffsetX + frameWidth) {
-				playerX = -((event.clientX - offsetX) / scale / hardWidth) * stageWidth + stageWidth / planetWidth / 2;
-			}
-
-			frameDragging = true;
-			frameX = event.clientX;
-			framePlayerX = playerX;
-		}
-	}
-}
-
-function assignClient(event) {
-	event.clientX = event.changedTouches[0].clientX;
-	event.clientY = event.changedTouches[0].clientY;
-}
-
-function touchMoveHandler(event) {
-	if (state > 2 && interactionDistance > -1) removeInteractions();
-	if (mobile) {
-		assignClient(event);
-	}
-	if (touchInteraction(event)) interactionDistance = event.clientX;
-}
-
-function touchInteraction(event) {
-	if (interactionDistance > -1) {
-		if (event.clientX < interactionDistance) {
-			if (state < 3) {
-				// solar system view
-				if (zoomed && selectedPlanet > 0) {
-					tweenToPlanet(selectedPlanet - 1);
-					return;
-				} else if (idle) {
-					onWheel({deltaY: -100});
-				}
-			} else {
-				// planet surface view
-				moveSurfaceFrame(event.clientX);
-			}
-		} else if (event.clientX > interactionDistance) {
-			if (state < 3) {
-				// solar system view
-				if (zoomed && selectedPlanet < (!system ? 3 : sun.moons.length - 2)) {
-					tweenToPlanet(selectedPlanet + 1);
-					return;
-				} else if (idle) {
-					onWheel({deltaY: 100});
-				}
-			} else {
-				// planet surface view
-				moveSurfaceFrame(event.clientX);
-			}
-		}
-	}
-	return true;
-}
-
-function moveSurfaceFrame(clientX) {
-	if (frameDragging) {
-		clientX = (framePlayerX + ((frameX - clientX) / scale / hardWidth) * stageWidth);
-		playerX = clientX % stageWidth;
-		bgrX = clientX / 2 % hardWidth;
-	} else {
-		frame.speed = (clientX - interactionDistance) / scale;
-	}
-}
-
-function touchEndHandler(event) {
-	if (mobile) {
-		assignClient(event);
-	}
-	if (interactionDistance == -2) {
-		frame.killed = true;
-		frame.speed = 0;
-	}
-	if (!frameDragging) {
-		touchInteraction(event);
-		if (state > 2) {
-			const frameSpeed = Math.abs(frame.speed / scale);
-			if (frameSpeed > 10) {
-				TweenFX.to(frame, frameSpeed > 60 ? 60 : frameSpeed, {speed: 0});
-			} else {
-				if (!frame.speed) {
-					// interaction has ended with no drag, so checking for clicked map elements
-					for (let i = 0; i < structures.length; i++) {
-						if (structures[i][0] > 9 && structures[i][0] < 20) {
-							const tapX = (stageWidth - playerX + (event.clientX - offsetX) / scale) / 100 + 1;
-							const objX = structures[i][1] / 5;
-							if (tapX > objX && tapX < objX + 4 && (event.clientY - offsetY) / scale > 700) {
-								// interact with an object on the surface
-								if (activeStructure == -1) {
-									removeInteractions();
-								} else {
-									interactSurface(i);
-								}
-							}
-						}
-					}
-				} else {
-					frame.killed = true;
-					frame.speed = 0;
-				}
-			}
-		}
-	}
-	frameDragging = false;
-	interactionDistance = -1;
-	Array.from(spaceDiv.children).forEach(div => div.style.pointerEvents = 'auto');
-	game.ontouchmove = null;
-	game.onmousemove = null;
-	game.onmouseup = game.onmouseleave = null;
 }
