@@ -1,14 +1,14 @@
-const game = document.getElementById("main");
-const bgrCanvas = document.getElementById("bgrCanvas");
-const spaceCanvas = document.getElementById("spaceCanvas");
-const gameCanvas = document.getElementById("gameCanvas");
-const overCanvas = document.getElementById("overCanvas");
-const spaceDiv = document.getElementById("spaceDiv");
-const gameDiv = document.getElementById("gameDiv");
-const frameDiv = document.getElementById("frameDiv");
-const uiDiv = document.getElementById("uiDiv");
-const menuDiv = document.getElementById("menuDiv");
-const resDiv = document.getElementById("resDiv");
+// const main = document.getElementById("main");
+// const bgrCanvas = document.getElementById("bgrCanvas");
+// const spaceCanvas = document.getElementById("spaceCanvas");
+// const gameCanvas = document.getElementById("gameCanvas");
+// const overCanvas = document.getElementById("overCanvas");
+// const spaceDiv = document.getElementById("spaceDiv");
+// const gameDiv = document.getElementById("gameDiv");
+// const frameDiv = document.getElementById("frameDiv");
+// const uiDiv = document.getElementById("uiDiv");
+// const menuDiv = document.getElementById("menuDiv");
+// const resDiv = document.getElementById("resDiv");
 
 window.addEventListener("load", init);
 
@@ -93,11 +93,11 @@ function resize(e) {
 	width = window.innerWidth;
 	height = window.innerHeight;
 	scale = getScale();
-	game.style.transform = `scale(${scale})`;
-	game.style.width = hardWidth + 'px';
-	game.style.height = hardHeight + 'px';
-	game.style.top = `${(height - hardHeight) / 2}px`;
-	game.style.left = `${(width - hardWidth) / 2}px`;
+	main.style.transform = `scale(${scale})`;
+	main.style.width = hardWidth + 'px';
+	main.style.height = hardHeight + 'px';
+	main.style.top = `${(height - hardHeight) / 2}px`;
+	main.style.left = `${(width - hardWidth) / 2}px`;
 	e = overCanvas.getBoundingClientRect();
 	offsetX = e.left;
 	offsetY = e.top;
@@ -126,14 +126,14 @@ function getClientY(e) {
 function addListeners() {
 	if (mobile) {
 		// mobile events
-		game.ontouchstart = touchStartHandler;
+		main.ontouchstart = touchStartHandler;
 	} else {
 		// desktop events
-		game.onmousedown = touchStartHandler;
+		main.onmousedown = touchStartHandler;
 	}
 
 	// mouse wheel event
-	game.onwheel = e => {
+	main.onwheel = e => {
 		if (state < 3 && idle) {
 			onWheel(e);
 		}
@@ -214,11 +214,11 @@ function touchStartHandler(event) {
 	}
 	if (mobile) {
 		assignClient(event);
-		game.ontouchmove = touchMoveHandler;
-		game.ontouchend = game.ontouchcancel = touchEndHandler;
+		main.ontouchmove = touchMoveHandler;
+		main.ontouchend = main.ontouchcancel = touchEndHandler;
 	} else {
-		game.onmousemove = touchMoveHandler;
-		game.onmouseup = game.onmouseleave = touchEndHandler;
+		main.onmousemove = touchMoveHandler;
+		main.onmouseup = main.onmouseleave = touchEndHandler;
 	}
 	interactionDistance = -2;
 
@@ -337,7 +337,7 @@ function touchEndHandler(event) {
 	frameDragging = false;
 	interactionDistance = -1;
 	Array.from(spaceDiv.children).forEach(div => div.style.pointerEvents = 'auto');
-	game.ontouchmove = null;
-	game.onmousemove = null;
-	game.onmouseup = game.onmouseleave = null;
+	main.ontouchmove = null;
+	main.onmousemove = null;
+	main.onmouseup = main.onmouseleave = null;
 }

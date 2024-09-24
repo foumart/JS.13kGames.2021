@@ -1,78 +1,121 @@
 const { src, dest, series } = require('gulp');
 const gulp = require('gulp');
-const minify = require('gulp-minify');
 const concat = require('gulp-concat');
 const htmlmin = require('gulp-htmlmin');
 const replace = require('gulp-string-replace');
-const htmlreplace = require('gulp-html-replace');
 const cleanCSS = require('gulp-clean-css');
 const browserSync = require('browser-sync').create();
 const closureCompiler = require('google-closure-compiler').gulp();
-const del = require('del');
 const argv = require('yargs').argv;
 const gulpif = require('gulp-if');
-const imagemin = require('gulp-imagemin');
-const zip = require('gulp-zip');
 const advzip = require('gulp-advzip');
-const package = require('./package.json');
+const roadroller = require('roadroller');
+const packageJson = require('./package.json');
+
+// import ES modules
+let imagemin, optipng, svgo, gifsicle, mozjpeg;
+let del, zip, js, css;
 
 const replaceOptions = { logs: { enabled: false } };
 const timestamp = getDateString();
 
-// data taken directly from package.json
-const title = package.name;
-const id_name = `${title.replace(/\s/g, '')}_${getDateString(true)}`;
-const version = package.version;
+// Data taken directly from package.json
+const name = packageJson.name;
+const version = packageJson.version;
+const id_name = `${name.replace(/\s/g, '')}`;//_${getDateString(true)}
+const title = packageJson.title || name;
+const descr = packageJson.description || name + " description";
+const link = packageJson.link || "index.html";
+const keywords = packageJson.keywords || "";
+const author = packageJson.author.name || "";
+const iconExtension = packageJson.iconExtension;
+const iconType = packageJson.iconType;
+const iconSize = packageJson.iconSize;
+const orientation = packageJson.orientation;
+const replacedIds = [];
 
-// monetization pointer - needs to be set in package.json
-const monetization = package.monetization;
-
-// set the output directory
+// Script Arguments:
+// --dir: set the output directory
 const dir = argv.dir || 'public';
 
-// don't use versioned zip file - useful for fast testing.
+// --test: don't use versioned zip file - useful for fast testing.
 const test = argv.test != undefined ? true : false;
 
-// enable progressive web app - use a service worker, webmanifest and pwa initialization scripts. Adds 864 bytes.
+// --pwa: enable progressive web app - use a service worker, webmanifest and pwa initialization scripts. Adds 842 bytes.
 const pwa = argv.pwa != undefined ? true : false;
 
-// display service worker logs
+// --debug: display service worker logs
 const debug = argv.debug != undefined ? true : false;
 
-// should html tags for mobile be included. Adds 45 bytes.
+// --roadroll: use a JS packer for up to 15% compression
+const roadroll = argv.roadroll != undefined ? true : false;
+
+// --prod: replaces the start_url in manifest to make PWA work on the js13k platform, otherwise using to index.html.
+const prod = argv.prod != undefined ? true : false;
+
+// --mobile: should html` tags for mobile be included. Adds 42 bytes.
 const mobile = argv.mobile != undefined || argv.all != undefined ? `
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" sizes="144x144" href="ico.png"/>` : false;
+<link rel="apple-touch-icon" sizes="${iconSize}x${iconSize}" href="ico.${iconExtension}"/>` : false;
 
-// should html tags for social media be included. Adds around 100 bytes, depending on description length.
+// --social: should html tags for social media be included. Adds around 100 bytes, depending on description length.
+// TODO: quotes should not be removed for content that has space characters
 const social = argv.social != undefined || argv.all != undefined ? `
 <meta name="application-name" content="${title}"/>
-<meta name="description" content="${package.description}"/>
-<meta name="keywords" content="${package.keywords}"/>
-<meta name="author" content="${package.author.name}"/>
+<meta name="description" content="${descr}"/>
+<meta name="keywords" content="${keywords}"/>
+<meta name="author" content="${author}"/>
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="${title}"/>
-<meta name="twitter:description" content="${package.description}"/>
-<meta name="twitter:image" content="ico.png"/>` : false;
+<meta name="twitter:description" content="${descr}"/>
+<meta name="twitter:image" content="ico.${iconExtension}"/>` : false;
 
-
-// prepare a web icon to be used by html and pwa
-// unfortunatelly we cannot use a svg icon: https://bugs.chromium.org/p/chromium/issues/detail?id=578122
+// Prepare a web icon to be used by html and pwa
 function ico(callback) {
-	src(['src/ico.png'], { allowEmpty: true })
-		.pipe(imagemin([imagemin.optipng({optimizationLevel: 7})]))
-		.pipe(dest(dir + '/'))
-		.on('end', callback)
+	(async () => {
+		// Keep the imports, even if not copying an icon, the gulp image modules are needed for the assets.
+		const gulpImageminModule = await import('gulp-imagemin');
+		imagemin = gulpImageminModule.default;
+		gifsicle = gulpImageminModule.gifsicle;
+		mozjpeg = gulpImageminModule.mozjpeg;
+		optipng = gulpImageminModule.optipng;
+		svgo = gulpImageminModule.svgo;
+
+		if (!mobile) {
+			return callback();
+		}
+
+		if (iconExtension == "svg") {
+			src(['src/ico.svg'], { allowEmpty: true })
+				.pipe(imagemin({silent: true, verbose: false}, [svgo()]))
+				.pipe(dest(dir + '/'))
+				.on('end', callback)
+		} else {
+			src(['src/ico.png'], { allowEmpty: true, encoding: false })
+				.pipe(imagemin({silent: true, verbose: false}, [optipng()]))
+				.pipe(dest(dir + '/'))
+				.on('end', callback)
+		}
+	})();
 }
 
-// prepare service worker script
+// Compress other graphical assets (if any)
+function assets(callback) {
+	src(['src/assets/*'], { allowEmpty: true, encoding: false })
+		.pipe(imagemin({silent: true, verbose: false}, [optipng(), gifsicle(), mozjpeg(), svgo()]))
+		.pipe(dest(dir + '/assets/'))
+		.on('end', callback);
+}
+
+// Prepare service worker script
 function sw(callback) {
 	if (pwa) {
 		src(['resources/service_worker.js'], { allowEmpty: true })
 			.pipe(replace('var debug;', `var debug = ${debug ? 'true' : 'false'};`, replaceOptions))
 			.pipe(replace('{ID_NAME}', id_name, replaceOptions))
 			.pipe(replace('{VERSION}', version, replaceOptions))
+			.pipe(replace('{ICON_EXTENSION}', iconExtension, replaceOptions))
 			.pipe(gulpif(!debug, replace('caches', 'window.caches', replaceOptions)))
 			.pipe(gulpif(!debug,
 				closureCompiler({
@@ -84,7 +127,6 @@ function sw(callback) {
 			))
 			.pipe(gulpif(!debug, replace('window.caches', 'caches', replaceOptions)))
 			.pipe(gulpif(!debug, replace('"use strict";', '', replaceOptions)))
-			.pipe(gulpif(!debug, minify({ noSource: true })))
 			.pipe(concat('sw.js'))
 			.pipe(dest(dir + '/'))
 			.on('end', callback)
@@ -93,8 +135,37 @@ function sw(callback) {
 	}
 }
 
-// minify css
-function css(callback) {
+// Compile the pwa initialization script (if needed) as well as game logic scripts
+function app(callback) {
+	const scripts = [
+		'src/scripts/*.js'
+	];
+	if (pwa) {
+		scripts.unshift('resources/sw_init.js');
+	}
+	scripts.unshift('resources/app_init.js');
+
+	src(scripts, { allowEmpty: true })
+		.pipe(replace('let _debug;', `let _debug = ${debug ? 'true' : 'false'};`, replaceOptions))
+		.pipe(gulpif(pwa, replace('service_worker', 'sw', replaceOptions)))
+		.pipe(replace('{VERSION}', version, replaceOptions))
+		.pipe(gulpif(!pwa, replace('function init', 'window.addEventListener("load",init);function init', replaceOptions)))
+		.pipe(gulpif(!debug,
+			closureCompiler({
+				compilation_level: 'ADVANCED_OPTIMIZATIONS',
+				warning_level: 'QUIET',
+				language_in: 'ECMASCRIPT_2017',
+				language_out: 'ECMASCRIPT6',
+				externs: 'resources/externs.js'
+			})
+		))
+		.pipe(concat('app.js'))
+		.pipe(dest(dir + '/tmp/'))
+		.on('end', callback);
+}
+
+// Minify CSS
+function cs(callback) {
 	src('src/styles/*.css', { allowEmpty: true })
 		.pipe(cleanCSS())
 		.pipe(concat('temp.css'))
@@ -102,40 +173,17 @@ function css(callback) {
 		.on('end', callback)
 }
 
-// compile the pwa initialization script and loader, as well as game scripts
-function app(callback) {
-	const scripts = [
-		'resources/loader.js',
-		'src/scripts/*'
-	];
-	if (pwa) {
-		scripts.unshift('resources/sw_init.js');
-	}
-
-	src(scripts, { allowEmpty: true })
-		.pipe(replace('let _debug;', `let _debug = ${debug ? 'true' : 'false'};`, replaceOptions))
-		.pipe(replace('service_worker', 'sw', replaceOptions))
-		.pipe(gulpif(!pwa, replace('// loader', 'window.addEventListener("load", _init);', replaceOptions)))
-		.pipe(gulpif(!debug,
-			closureCompiler({
-				compilation_level: 'ADVANCED_OPTIMIZATIONS',
-				warning_level: 'QUIET',
-				language_in: 'ECMASCRIPT6',
-				language_out: 'ECMASCRIPT6'
-			})
-		))
-		.pipe(gulpif(!debug, minify({ noSource: true })))
-		.pipe(concat('app.js'))
-		.pipe(dest(dir + '/tmp/'))
-		.on('end', callback);
-}
-
-// prepare web manifest file
+// Prepare web manifest file
 function mf(callback) {
 	if (pwa) {
 		src('resources/mf.webmanifest', { allowEmpty: true })
 			.pipe(replace('service_worker', 'sw', replaceOptions))
 			.pipe(replace('{TITLE}', title, replaceOptions))
+			.pipe(replace('{LINK}', prod ? link : "index.html", replaceOptions))
+			.pipe(replace('{ICON_EXTENSION}', iconExtension, replaceOptions))
+			.pipe(replace('{ICON_TYPE}', iconType, replaceOptions))
+			.pipe(replace('{ICON_SIZE}', iconSize, replaceOptions))
+			.pipe(replace('{ORIENTATION}', orientation, replaceOptions))
 			.pipe(htmlmin({ collapseWhitespace: true }))
 			.pipe(dest(dir + '/'))
 			.on('end', callback);
@@ -144,89 +192,117 @@ function mf(callback) {
 	}
 }
 
-// inline js and css into html and remove unnecessary stuff
-function pack(callback) {
+// Read the temporary JS and CSS files and compress the javascript with Roadroller
+async function mangle() {
 	const fs = require('fs');
-	let css = fs.readFileSync(dir + '/tmp/temp.css', 'utf8');
-	let js = fs.readFileSync(dir + '/tmp/app.js', 'utf8');
-	let functionName;
-	const elementIds = ['main', 'bgrCanvas', 'spaceCanvas', 'gameCanvas', 'overCanvas', 'spaceDiv', 'gameDiv', 'frameDiv', 'uiDiv', 'menuDiv', 'resDiv'];
-	const variableNames = [];
+	css = fs.readFileSync(dir + '/tmp/temp.css', 'utf8');
+	js = fs.readFileSync(dir + '/tmp/app.js', 'utf8');
+
 	if (!debug) {
-		// fix ontouchstart event bug
-		const occurance = js.indexOf('ontouchstart');
-		functionName = js.substr(occurance + 13, js.charAt(occurance + 15) == ',' || js.charAt(occurance + 15) == ':' ? 2 : 1);
-
-		// remove getElementById calls that are required by the compiler. The Id named html elements are directly available in js as globals.
-		const segmentedJs = js.split('=document.getElementById("');
-		variableNames.push(segmentedJs[0].substr(segmentedJs[0].lastIndexOf(' ') + 1));
-		segmentedJs[0] = segmentedJs[0].substring(13, segmentedJs[0].lastIndexOf(' ') - 5);
-		for (let i = 1; i < segmentedJs.length - 1; i++) {
-			variableNames.push(segmentedJs[i].split(',')[1]);
-		}
-		const varsToRename = [];
-		for (let i = 0; i < variableNames.length; i++) {
-			const varName = variableNames[i];
-			const renamedVar = varName.replace('$', '_');
-			if (varName != renamedVar) {
-				varsToRename.push([varName, renamedVar]);
-				variableNames[i] = renamedVar;
-			}
-		}
-		segmentedJs[segmentedJs.length-1] = segmentedJs[segmentedJs.length-1].substring(segmentedJs[segmentedJs.length-1].indexOf(';') + 1);
-		js = segmentedJs[0] + segmentedJs[segmentedJs.length-1];
-
-		for (let i = 0; i < varsToRename.length; i ++) {
-			// Regex is not replacing all occurancies..
-			//const regex = new RegExp(varsToRename[i][0], 'g');
-			//js = js.replace(regex, varsToRename[i][1]);
-			js = js.split(varsToRename[i][0]).join(varsToRename[i][1]);
-		}
-
-		// replace css ids
+		//
+		const elementIds = ['main', 'bgrCanvas', 'spaceCanvas', 'gameCanvas', 'overCanvas', 'spaceDiv', 'gameDiv', 'frameDiv', 'uiDiv', 'menuDiv', 'resDiv'];
 		for (let i = 0; i < elementIds.length; i++) {
 			const regex = new RegExp(elementIds[i], 'g');
-			css = css.replace(regex, variableNames[i]);
+			js = js.replace(regex, String.fromCharCode(i + 97) + "z");
+			css = css.replace(regex, String.fromCharCode(i + 97) + "z");
+			replacedIds.push(String.fromCharCode(i + 97) + "z");
 		}
+
+		if (roadroll) {
+			const packer = new roadroller.Packer(
+				[{
+					data: js,
+					type: 'js',
+					action: 'eval'
+				}],
+				{
+					selectors: 32,
+					maxMemoryMB: 640,
+					precision: 16,
+					recipLearningRate: 1500,
+					modelMaxCount: 3,
+					modelRecipBaseCount: 30,
+					numAbbreviations: 64,
+					allowFreeVars: 0
+				}
+			);
+			await packer.optimize();
+			const { firstLine, secondLine } = packer.makeDecoder();
+			js = firstLine + secondLine;
+		}
+	} else {
+		let dummyPromise = new Promise(function(resolve) {
+			setTimeout(resolve, 1);
+		})
+		await dummyPromise;
 	}
+}
+
+// Inline JS and CSS into index.html
+function pack(callback) {
 	let stream = src('src/index.html', { allowEmpty: true });
-	if (!debug) for (let i = 0; i < elementIds.length; i++) {
-		stream = stream.pipe(replace(elementIds[i], variableNames[i], replaceOptions));
-	}
+
 	stream
-		.pipe(replace('{MONETIZATION}', monetization, replaceOptions))
+		.pipe(gulpif(!pwa, replace('<link rel="icon" type="{ICON_TYPE}" sizes="any" href="ico.{ICON_EXTENSION}">', '', replaceOptions)))
+		.pipe(gulpif(!debug, replace('main', replacedIds[0], replaceOptions)))
+		.pipe(gulpif(!debug, replace('bgrCanvas', replacedIds[1], replaceOptions)))
+		.pipe(gulpif(!debug, replace('spaceCanvas', replacedIds[2], replaceOptions)))
+		.pipe(gulpif(!debug, replace('gameCanvas', replacedIds[3], replaceOptions)))
+		.pipe(gulpif(!debug, replace('overCanvas', replacedIds[4], replaceOptions)))
+		.pipe(gulpif(!debug, replace('spaceDiv', replacedIds[5], replaceOptions)))
+		.pipe(gulpif(!debug, replace('gameDiv', replacedIds[6], replaceOptions)))
+		.pipe(gulpif(!debug, replace('frameDiv', replacedIds[7], replaceOptions)))
+		.pipe(gulpif(!debug, replace('uiDiv', replacedIds[8], replaceOptions)))
+		.pipe(gulpif(!debug, replace('menuDiv', replacedIds[9], replaceOptions)))
+		.pipe(gulpif(!debug, replace('resDiv', replacedIds[10], replaceOptions)))
 		.pipe(replace('{TITLE}', title, replaceOptions))
-		.pipe(gulpif(social != false && mobile != false, htmlreplace({'mobile': mobile, 'social': social})))
-		.pipe(gulpif(social === false && mobile != false, htmlreplace({'mobile': mobile, 'social': ''})))
-		.pipe(gulpif(social != false && mobile === false, htmlreplace({'mobile': '', 'social': social})))
-		.pipe(gulpif(social === false && mobile === false, htmlreplace({'mobile': '', 'social': ''})))
+		.pipe(replace('{ICON_EXTENSION}', iconExtension, replaceOptions))
+		.pipe(replace('{ICON_TYPE}', iconType, replaceOptions))
+		.pipe(replace('rep_social', social != false ? social : '', replaceOptions))
+		.pipe(replace('rep_mobile', mobile != false ? mobile : '', replaceOptions))
 		.pipe(gulpif(!pwa, replace('<link rel="manifest" href="mf.webmanifest">', '', replaceOptions)))
-		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true }))
-		.pipe(replace('"', '', replaceOptions))
+		.pipe(htmlmin({ collapseWhitespace: true, removeComments: true, removeAttributeQuotes: true }))
 		.pipe(replace('rep_css', '<style>' + css + '</style>', replaceOptions))
 		.pipe(replace('rep_js', '<script>' + js + '</script>', replaceOptions))
-		.pipe(gulpif(!debug, replace(' ontouchstart', ` ontouchstart=${functionName}()`, replaceOptions)))
 		.pipe(concat('index.html'))
 		.pipe(dest(dir + '/'))
 		.on('end', callback);
 }
 
-// delete the temporary folder generated during packaging
-function clean() {
-	return del(dir + '/tmp/');
+// Delete the public folder at the beginning
+function prep(callback) {
+	(async () => {
+		del = (await import('del')).deleteAsync;
+		del(dir);
+		callback();
+	})();
 }
 
-// package zip (exclude the Twemoji.ttf font if it's being used locally)
+// Delete the temporary folder generated during packaging
+function clean(callback) {
+	(async () => {
+		del = (await import('del')).deleteAsync;
+		del(dir + '/tmp/');
+		callback();
+	})();
+}
+
+// Package zip (exclude any fonts that are used locally, like Twemoji.ttf)
 function archive(callback) {
 	if (debug) callback();
-	else src([dir + '/*', dir + '/*/*', '!'+ dir + '/*.ttf'], { allowEmpty: true })
-		.pipe(zip(test ? 'game.zip' : 'game_' + timestamp + '.zip'))
-		.pipe(advzip({ optimizationLevel: 4, iterations: 10 }))
-		.pipe(dest('zip/'))
-		.on('end', callback);
+	else {
+		(async () => {
+			zip = (await import('gulp-zip')).default;
+			src([dir + '/*', dir + '/*/*', '!'+ dir + '/*.ttf'], { allowEmpty: true })
+				.pipe(zip(test ? 'game.zip' : 'game_' + timestamp + '.zip'))
+				.pipe(advzip({ optimizationLevel: 4, iterations: 10 }))
+				.pipe(dest('zip/'))
+				.on('end', callback);
+		})();
+	}
 }
 
-// output the zip filesize
+// Output the zip filesize
 function check(callback) {
 	if (debug) callback();
 	else {
@@ -240,7 +316,7 @@ function check(callback) {
 	}
 }
 
-// watch for changes in the source folder
+// Watch for changes in the source folder
 function watch(callback) {
 	browserSync.init({
 		server: './public',
@@ -257,12 +333,20 @@ function watch(callback) {
 
 // copy the emoji font
 function emoji(callback) {
-	src(['src/assets/Twemoji.ttf'], { allowEmpty: true })
-		.pipe(dest(dir + '/'))
-		.on('end', callback)
+	const fs = require('fs-extra');
+
+	fs.copy('resources/Twemoji.ttf', dir + '/Twemoji.ttf', err => {
+		if (err) {
+			console.error('Error copying file:', err);
+			return callback(err);
+		}
+		//console.log('File copied successfully.');
+		callback();
+	});
 }
 
-// reload the browser sync instance, or run a new server with live reload
+
+// Reload the browser sync instance, or run a new server with live reload
 function reload(callback) {
 	if (!browserSync.active) {
 		watch(callback);
@@ -272,7 +356,7 @@ function reload(callback) {
 	}
 }
 
-// helper function for timestamp and naming
+// Helper function for timestamp and naming
 function getDateString(shorter) {
 	const date = new Date();
 	const year = date.getFullYear();
@@ -283,13 +367,12 @@ function getDateString(shorter) {
 	return `${year}${month}${day}_${signiture}`;
 }
 
-// exports
-exports.default = series(ico, sw, app, css, mf, pack, clean, archive, check, emoji, watch);
-exports.pack = series(ico, sw, app, css, mf, pack, clean);
-exports.sync = series(app, css, pack, clean, reload);
+// Exports
+exports.default = series(prep, ico, sw, app, cs, mf, mangle, assets, pack, clean, archive, check, emoji, watch);
+exports.sync = series(ico, app, cs, mangle, assets, pack, clean, reload);
 exports.zip = series(archive, check);
 
 /*
-   Gulpfile by Noncho Savov
+   JS13K Template Gulpfile by Noncho Savov
    https://www.FoumartGames.com
 */

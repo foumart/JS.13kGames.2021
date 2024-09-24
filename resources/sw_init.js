@@ -1,10 +1,9 @@
 // Progressive Web App service worker initialization script - feel free to remove if you are not going to build a PWA.
-
-// Set debug to true if you want to see logs about caching / fetching of resources and other output.
-let _debug;
+// PWAs can work only with secure connections.
+const _online = location.protocol.substring(0, 5) === "https";
 
 // Service worker detection and installation script:
-if ("serviceWorker" in navigator && location.protocol.substring(0, 5) === "https") {
+if ("serviceWorker" in navigator && _online) {
 	navigator.serviceWorker.getRegistrations().then(registrations => {
 		let isRegistered;
 		for (let i = 0; i < registrations.length; i++) {
@@ -13,20 +12,26 @@ if ("serviceWorker" in navigator && location.protocol.substring(0, 5) === "https
 		if (isRegistered) {
 			if (_debug) console.log("ServiceWorker already registered");
 		} else {
-			navigator.serviceWorker.register("service_worker.js").then(() => {
-				if (_debug) console.log("ServiceWorker registered successfully");
-			}).catch(() => {
-				if (_debug) console.log("ServiceWorker registration failed");
-				_init();
-			});
+			if (_debug) {
+				navigator.serviceWorker.register("service_worker.js").then(() => {
+					console.log("ServiceWorker registered successfully");
+				}).catch(() => {
+					console.log("ServiceWorker registration failed");
+					pwaInit();
+				});
+			} else {
+				navigator.serviceWorker.register("service_worker.js").catch(() => {
+					pwaInit();
+				});
+			}
 		}
 	}).catch(() => {
 		if (_debug) console.log("ServiceWorker bypassed locally");
-		_init();
+		pwaInit();
 	});
 	navigator.serviceWorker.ready.then(() => {
 		if (_debug) console.log('ServiceWorker is now active');
-		_init();
+		pwaInit();
 	});
 } else {
 	if (_debug) {
@@ -37,5 +42,12 @@ if ("serviceWorker" in navigator && location.protocol.substring(0, 5) === "https
 		}
 	}
 
-	window.addEventListener("load", _init);
+	window.addEventListener("load", pwaInit);
+}
+
+function pwaInit() {
+	// if matching, we are running in browser; alternatives: (display-mode: standalone)
+	_standalone = !window.matchMedia('(display-mode: browser)').matches;
+	// we continue in app.js
+	init();
 }

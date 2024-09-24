@@ -39,6 +39,8 @@ let carbon = 0;
 // depot random resource selection
 let monthRandom;
 
+let _monetization; // TODO: to be cleaned
+
 // buildings data
 // char id, x, scale, y, status (0: non existent, 1: non selected, 2: highlighted, 3: selected), circ offset, name, menu id, menu total, cost
 const buildings = [
